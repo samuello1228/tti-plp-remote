@@ -11,7 +11,7 @@ from tkinter import ttk
 #Then its obvious which widget you are using, at the expense of just a tiny bit more typing
 
 #default_psu_ip = '192.168.1.100'
-default_psu_ip ='192.168.128.30'
+default_psu_ip ='169.254.100.78'
 sample_interval_secs = 2.5
 
 max_volt_setting = 30.0
