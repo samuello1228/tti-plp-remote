@@ -10,6 +10,9 @@ from tkinter import ttk
 #f2 = ttk.Frame(..., style=...)
 #Then its obvious which widget you are using, at the expense of just a tiny bit more typing
 
+isEmulate = False
+isEmulate = True
+
 #default_psu_ip = '192.168.1.100'
 default_psu_ip ='169.254.100.78'
 sample_interval_secs = 2.5
@@ -54,6 +57,16 @@ class ttiPsu(object):
         self.sock_timeout_secs = 4
         self.packet_end = bytes('\r\n','ascii')
         print('Using port', self.port)
+
+        if isEmulate:
+            self.identity_emulate = "My Power Supply"
+            self.out_volts_emulate = 8.0
+            self.target_volts_emulate = 8.0
+            self.target_amps_emulate = 2.0
+            self.is_enabled_emulate = False
+            self.amp_range_emulate = 1
+
+            self.resistance_emulate = 8.0
 
     def send_only(self, cmd):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -115,65 +128,95 @@ class ttiPsu(object):
         return False
 
     def getIdent(self):
-        self.ident_string = self.send_receive_string('*IDN?')
-        return self.ident_string.strip()
+        if isEmulate:
+            return self.identity_emulate
+        else:
+            self.ident_string = self.send_receive_string('*IDN?')
+            return self.ident_string.strip()
 
+    '''
     def getConfig(self):
         cmd = 'CONFIG?'
         v = self.send_receive_integer(cmd)
         return v
+    '''
 
     def getAmpRange(self):
-        #Supported on PL series
-        #Not supported on MX series
-        r=0
-        try:
-            cmd = 'IRANGE{}?'.format(self.channel)
-            r = self.send_receive_integer(cmd)
-        except:
-            pass
-        #The response is 1 for Low (500/800mA) range,
-        # 2 for High range (3A or 6A parallel)
-        # or 0 for no response / not supported
-        return r
+        if isEmulate:
+            return self.amp_range_emulate
+        else:
+            #Supported on PL series
+            #Not supported on MX series
+            r=0
+            try:
+                cmd = 'IRANGE{}?'.format(self.channel)
+                r = self.send_receive_integer(cmd)
+            except:
+                pass
+            #The response is 1 for Low (500/800mA) range,
+            # 2 for High range (3A or 6A parallel)
+            # or 0 for no response / not supported
+            return r
 
     def setAmpRangeLow(self):
-        #Supported on PL series
-        #Not supported on MX series
-        cmd = 'IRANGE{} 1'.format(self.channel)
-        self.send_only(cmd)
+        if isEmulate:
+            self.amp_range_emulate = 1
+        else:
+            #Supported on PL series
+            #Not supported on MX series
+            cmd = 'IRANGE{} 1'.format(self.channel)
+            self.send_only(cmd)
 
     def setAmpRangeHigh(self):
-        #Supported on PL series
-        #Not supported on MX series
-        cmd = 'IRANGE{} 2'.format(self.channel)
-        self.send_only(cmd)
+        if isEmulate:
+            self.amp_range_emulate = 2
+        else:
+            #Supported on PL series
+            #Not supported on MX series
+            cmd = 'IRANGE{} 2'.format(self.channel)
+            self.send_only(cmd)
 
     def getOutputIsEnabled(self):
-        cmd = 'OP{}?'.format(self.channel)
-        v = self.send_receive_boolean(cmd)
+        if isEmulate:
+            v = self.is_enabled_emulate
+        else:
+            cmd = 'OP{}?'.format(self.channel)
+            v = self.send_receive_boolean(cmd)
         return v
 
     def getOutputVolts(self):
-        cmd = 'V{}O?'.format(self.channel)
-        v = self.send_receive_float(cmd)
+        if isEmulate:
+            v = self.out_volts_emulate
+        else:
+            cmd = 'V{}O?'.format(self.channel)
+            v = self.send_receive_float(cmd)
         return v
 
     def getOutputAmps(self):
-        cmd = 'I{}O?'.format(self.channel)
-        v = self.send_receive_float(cmd)
+        if isEmulate:
+            v = self.out_volts_emulate / self.resistance_emulate
+        else:
+            cmd = 'I{}O?'.format(self.channel)
+            v = self.send_receive_float(cmd)
         return v
 
     def getTargetVolts(self):
-        cmd = 'V{}?'.format(self.channel)
-        v = self.send_receive_float(cmd)
+        if isEmulate:
+            v = self.target_volts_emulate
+        else:
+            cmd = 'V{}?'.format(self.channel)
+            v = self.send_receive_float(cmd)
         return v
 
     def getTargetAmps(self):
-        cmd = 'I{}?'.format(self.channel)
-        v = self.send_receive_float(cmd)
+        if isEmulate:
+            v = self.target_amps_emulate
+        else:
+            cmd = 'I{}?'.format(self.channel)
+            v = self.send_receive_float(cmd)
         return v
 
+    '''
     def getOverVolts(self):
         cmd = 'OVP{}?'.format(self.channel)
         v = self.send_receive_float(cmd)
@@ -183,34 +226,47 @@ class ttiPsu(object):
         cmd = 'OCP{}?'.format(self.channel)
         v = self.send_receive_float(cmd)
         return v
+    '''
 
     def setOutputEnable(self, ON):
-        cmd=''
-        if ON == True:
-            cmd = 'OP{} 1'.format(self.channel)
+        if isEmulate:
+            if ON == True:
+                self.is_enabled_emulate = True
+            else:
+                self.is_enabled_emulate = False
         else:
-            cmd = 'OP{} 0'.format(self.channel)
-        self.send_only(cmd)
+            cmd=''
+            if ON == True:
+                cmd = 'OP{} 1'.format(self.channel)
+            else:
+                cmd = 'OP{} 0'.format(self.channel)
+            self.send_only(cmd)
 
     def setTargetVolts(self, volts):
-        cmd = 'V{0} {1:2.3f}'.format(self.channel, volts)
-        self.send_only(cmd)
+        if isEmulate:
+            self.target_volts_emulate = volts
+            self.out_volts_emulate = volts
+        else:
+            cmd = 'V{0} {1:2.3f}'.format(self.channel, volts)
+            self.send_only(cmd)
 
     def setTargetAmps(self, amps):
-        cmd = 'I{0} {1:1.3f}'.format(self.channel, amps)
-        self.send_only(cmd)
+        if isEmulate:
+            self.target_amps_emulate = amps
+        else:
+            cmd = 'I{0} {1:1.3f}'.format(self.channel, amps)
+            self.send_only(cmd)
 
     def setLocal(self):
-        cmd = 'LOCAL'
-        self.send_only(cmd)
+        if isEmulate:
+            pass
+        else:
+            cmd = 'LOCAL'
+            self.send_only(cmd)
 
     def GetData(self):
         # Gather data from PSU
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            self.mysocket = s
-            self.mysocket.settimeout(self.sock_timeout_secs)
-            self.mysocket.connect((self.ip, self.port))
-
+        if isEmulate:
             dtime = datetime.datetime.now()
             identity = self.getIdent()
             out_volts = self.getOutputVolts()
@@ -224,6 +280,26 @@ class ttiPsu(object):
                                     target_volts, target_amps,
                                     is_enabled, amp_range)
             return dataset
+
+        else:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                self.mysocket = s
+                self.mysocket.settimeout(self.sock_timeout_secs)
+                self.mysocket.connect((self.ip, self.port))
+         
+                dtime = datetime.datetime.now()
+                identity = self.getIdent()
+                out_volts = self.getOutputVolts()
+                out_amps = self.getOutputAmps()
+                target_volts = self.getTargetVolts()
+                target_amps = self.getTargetAmps()
+                is_enabled = self.getOutputIsEnabled()
+                amp_range = self.getAmpRange()
+                dataset = DataToGui(True, dtime, identity,
+                                        out_volts, out_amps,
+                                        target_volts, target_amps,
+                                        is_enabled, amp_range)
+                return dataset
 
 
 '''
