@@ -55,7 +55,7 @@ class ttiPsu(object):
         self.packet_end = bytes('\r\n','ascii')
         print('Using port', self.port)
 
-    def send(self, cmd):
+    def send_only(self, cmd):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(self.sock_timeout_secs)
             s.connect((self.ip, self.port))
@@ -141,13 +141,13 @@ class ttiPsu(object):
         #Supported on PL series
         #Not supported on MX series
         cmd = 'IRANGE{} 1'.format(self.channel)
-        self.send(cmd)
+        self.send_only(cmd)
 
     def setAmpRangeHigh(self):
         #Supported on PL series
         #Not supported on MX series
         cmd = 'IRANGE{} 2'.format(self.channel)
-        self.send(cmd)
+        self.send_only(cmd)
 
     def getOutputIsEnabled(self):
         cmd = 'OP{}?'.format(self.channel)
@@ -190,19 +190,19 @@ class ttiPsu(object):
             cmd = 'OP{} 1'.format(self.channel)
         else:
             cmd = 'OP{} 0'.format(self.channel)
-        self.send(cmd)
+        self.send_only(cmd)
 
     def setTargetVolts(self, volts):
         cmd = 'V{0} {1:2.3f}'.format(self.channel, volts)
-        self.send(cmd)
+        self.send_only(cmd)
 
     def setTargetAmps(self, amps):
         cmd = 'I{0} {1:1.3f}'.format(self.channel, amps)
-        self.send(cmd)
+        self.send_only(cmd)
 
     def setLocal(self):
         cmd = 'LOCAL'
-        self.send(cmd)
+        self.send_only(cmd)
 
     def GetData(self):
         # Gather data from PSU
