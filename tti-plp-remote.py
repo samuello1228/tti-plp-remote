@@ -337,10 +337,6 @@ class TimerThread(threading.Thread):
 
     def run(self):
         while True:
-            if root == None:
-                print("Error: root is None.")
-                break
-            
             if self.stopped.wait(self.ticktime):
                 break
             
@@ -374,6 +370,7 @@ class TimerThread(threading.Thread):
                     dataset = DataToGui.error()
                     pass
                 commQueueRx.put( dataset ) #send through Queue to gui
+                dataset.print()
                 if root != None:
                     root.event_generate('<<PsuGuiDisplayUpdate>>', when='tail') #Tell gui to update
             else:
@@ -421,6 +418,16 @@ class DataToGui(object):
     @classmethod
     def error(cls):
         return cls(False, datetime.datetime.now(), None, None, None, None, None, None, None)
+        
+    def print(self):
+        print('Time: ' + self.dtime.strftime('%c'))
+        print('Name: ' + self.identity)
+        print('isEnabled: {}'.format(self.is_enabled))
+        print('Output Voltage: {0:2.2f} V'.format(self.out_volts))
+        print('Output Current: {0:2.2f} A'.format(self.out_amps))
+        print('Target Voltage: {0:2.2f} V'.format(self.target_volts))
+        print('Current Limit: {0:2.2f} A'.format(self.target_amps))
+        print('')
 
 class CmdToTTi(object):
     def __init__(self, command, parameter):
@@ -787,10 +794,86 @@ def on_closing():
 
 
 if __name__ == '__main__':
-    #global root #Not required here as python 'if' doesn't start a new scope
-    root = tk.Tk()
-    #root.geometry('400x200+200+200')
-    Application(root)
-    root.protocol('WM_DELETE_WINDOW', on_closing)
-    root.mainloop()
-    root = None
+    #if True:
+    if False:
+        #global root #Not required here as python 'if' doesn't start a new scope
+        root = tk.Tk()
+        #root.geometry('400x200+200+200')
+        Application(root)
+        root.protocol('WM_DELETE_WINDOW', on_closing)
+        root.mainloop()
+        root = None
+
+    if True:
+        stopFlag = threading.Event()
+        ip = default_psu_ip
+        channel = 1
+        print("ip: " + ip)
+        print("Channel: {0}".format(channel))
+        
+        isStart = False
+        isOn = False
+        while True:
+            cmd = input("Enter your command:\n")
+            print("Received command: " + cmd)
+            
+            if cmd == "end":
+                break
+            
+            if not isStart:
+                if cmd == "start":
+                    tti_timer_thread = TimerThread(stopFlag, ip, channel)
+                    tti_timer_thread.setDaemon(True)
+                    tti_timer_thread.start()
+                    
+                    isStart = True
+                    
+                elif cmd[0:3] == "set":
+                    if cmd[4:7] == "ip ":
+                        ip = cmd[7:]
+                        print("ip: " + ip)
+                        print("Channel: {0}".format(channel))
+                
+                    elif cmd[4:7] == "ch ":
+                        channel = cmd[7:]
+                        print("ip: " + ip)
+                        print("Channel: {0}".format(channel))
+           
+            else:
+                if cmd == "stop":
+                    stopFlag.set()
+                    isStart = False
+              
+                elif cmd == "on" and not isOn:
+                    print('Set output ON')
+                    cmd = CmdToTTi('OUTPUT ON',0)
+                    commQueueTx.put(cmd)
+              
+                    isOn = True
+              
+                elif cmd == "off" and isOn:
+                    print('Set output OFF')
+                    cmd = CmdToTTi('OUTPUT OFF',0)
+                    commQueueTx.put(cmd)
+              
+                    isOn = False
+              
+                #set value
+                elif cmd[0:3] == "set":
+                    if cmd[4:6] == "v ":
+                        v = float(cmd[6:])
+                        if v < 0 or v > max_volt_setting:
+                            print("Invalid target voltage")
+                        else:
+                            print('Set target voltage {0:.3f} V'.format(v))
+                            cmd = CmdToTTi('SET VOLTS', v)
+                            commQueueTx.put(cmd)
+
+                    elif cmd[4:6] == "i ":
+                        i = float(cmd[6:])
+                        if i < 0 or i > max_milliamp_setting:
+                            print("Invalid current limit")
+                        else:
+                            print('Set current limit {0} mA'.format(int(i)))
+                            cmd = CmdToTTi('SET AMPS', float(i)/1000.0)
+                            commQueueTx.put(cmd)
