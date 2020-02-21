@@ -1,4 +1,4 @@
-﻿#!/usr/bin/python3
+#!/usr/bin/python3
 
 import os, threading, socket, queue, datetime, time
 
@@ -336,10 +336,18 @@ class TimerThread(threading.Thread):
         self.tick = self.max_ticks #Do sample soon after connect
 
     def run(self):
-        while not self.stopped.wait(self.ticktime) and root != None:
+        while True:
+            if root == None:
+                print("Error: root is None.")
+                break
+            
+            if self.stopped.wait(self.ticktime):
+                break
+            
             self.tick = self.tick+1
-            #print(self.tick)
+            #print("Self tick: {0:.1f}".format(self.tick))
             if not commQueueTx.empty():
+                #print("send command")
                 cmd = commQueueTx.get()
                 commQueueTx.task_done()
                 #print(cmd.command)
@@ -356,6 +364,7 @@ class TimerThread(threading.Thread):
                 except:
                     print('Failed to send command')
             elif self.tick >= self.max_ticks:
+                #print("get data")
                 self.tick = 0
                 dataset = None
                 try:
@@ -367,6 +376,9 @@ class TimerThread(threading.Thread):
                 commQueueRx.put( dataset ) #send through Queue to gui
                 if root != None:
                     root.event_generate('<<PsuGuiDisplayUpdate>>', when='tail') #Tell gui to update
+            else:
+                #print("do nothing")
+                pass
         try:
             #Clean up when thread is closing
             print('Cleanup timer thread')
