@@ -840,6 +840,12 @@ if __name__ == '__main__':
                         print("Channel: {0}".format(channel))
            
             else:
+                while not commQueueRx.empty():
+                    data = commQueueRx.get() #get a DataToGui object from the queue
+                    commQueueRx.task_done()
+                    if data.valid:
+                        isOn = data.is_enabled
+
                 if cmd == "stop":
                     stopFlag.set()
                     isStart = False
