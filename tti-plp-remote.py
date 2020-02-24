@@ -383,7 +383,7 @@ class TimerThread(threading.Thread):
                 dataset = DataToGui.error()
                 commQueueRx.put(dataset)
                 root.event_generate('<<PsuGuiDisplayUpdate>>', when='tail')
-                self.tti.setLocal() 
+            self.tti.setLocal() 
         except:
             pass
 
