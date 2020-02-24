@@ -11,7 +11,7 @@ from tkinter import ttk
 #Then its obvious which widget you are using, at the expense of just a tiny bit more typing
 
 isEmulate = False
-isEmulate = True
+#isEmulate = True
 
 #default_psu_ip = '192.168.1.100'
 default_psu_ip ='169.254.100.78'
@@ -60,13 +60,13 @@ class ttiPsu(object):
 
         if isEmulate:
             self.identity_emulate = "My Power Supply"
-            self.out_volts_emulate = 8.0
-            self.target_volts_emulate = 8.0
-            self.target_amps_emulate = 2.0
+            self.out_volts_emulate = 12.0
+            self.target_volts_emulate = 12.0
+            self.target_amps_emulate = 0.5
             self.is_enabled_emulate = False
             self.amp_range_emulate = 1
 
-            self.resistance_emulate = 8.0
+            self.resistance_emulate = 33.0
 
     def send_only(self, cmd):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -423,10 +423,10 @@ class DataToGui(object):
         print('Time: ' + self.dtime.strftime('%c'))
         print('Name: ' + self.identity)
         print('isEnabled: {}'.format(self.is_enabled))
-        print('Output Voltage: {0:2.2f} V'.format(self.out_volts))
-        print('Output Current: {0:2.2f} A'.format(self.out_amps))
-        print('Target Voltage: {0:2.2f} V'.format(self.target_volts))
-        print('Current Limit: {0:2.2f} A'.format(self.target_amps))
+        print('Target Voltage: {0:.3f} V'.format(self.target_volts))
+        print('Current Limit: {0} mA'.format(int(self.target_amps*1000)))
+        print('Output Voltage: {0:.3f} V'.format(self.out_volts))
+        print('Output Current: {0} mA'.format(int(self.out_amps*1000)))
         print('')
 
 class CmdToTTi(object):
@@ -804,8 +804,7 @@ if __name__ == '__main__':
         root.mainloop()
         root = None
 
-    if True:
-        stopFlag = threading.Event()
+    else:
         ip = default_psu_ip
         channel = 1
         print("ip: " + ip)
@@ -822,6 +821,7 @@ if __name__ == '__main__':
             
             if not isStart:
                 if cmd == "start":
+                    stopFlag = threading.Event()
                     tti_timer_thread = TimerThread(stopFlag, ip, channel)
                     tti_timer_thread.setDaemon(True)
                     tti_timer_thread.start()
