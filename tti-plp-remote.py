@@ -11,7 +11,7 @@ from tkinter import ttk
 #Then its obvious which widget you are using, at the expense of just a tiny bit more typing
 
 isEmulate = False
-#isEmulate = True
+isEmulate = True
 
 #default_psu_ip = '192.168.1.100'
 default_psu_ip ='169.254.100.78'
@@ -93,9 +93,15 @@ class ttiPsu(object):
         return b''.join(total_data)
 
     def send_receive_string(self, cmd):
-        #print('Cmd', repr(cmd))
-        self.mysocket.sendall(bytes(cmd,'ascii'))
-        data = self.recv_end(self.mysocket)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            self.mysocket = s
+            self.mysocket.settimeout(self.sock_timeout_secs)
+            self.mysocket.connect((self.ip, self.port))
+
+            #print('Cmd', repr(cmd))
+            self.mysocket.sendall(bytes(cmd,'ascii'))
+            data = self.recv_end(self.mysocket)
+
         #print('Received', repr(data))
         return data.decode('ascii')
     '''
@@ -266,40 +272,19 @@ class ttiPsu(object):
 
     def GetData(self):
         # Gather data from PSU
-        if isEmulate:
-            dtime = datetime.datetime.now()
-            identity = self.getIdent()
-            out_volts = self.getOutputVolts()
-            out_amps = self.getOutputAmps()
-            target_volts = self.getTargetVolts()
-            target_amps = self.getTargetAmps()
-            is_enabled = self.getOutputIsEnabled()
-            amp_range = self.getAmpRange()
-            dataset = DataToGui(True, dtime, identity,
-                                    out_volts, out_amps,
-                                    target_volts, target_amps,
-                                    is_enabled, amp_range)
-            return dataset
-
-        else:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                self.mysocket = s
-                self.mysocket.settimeout(self.sock_timeout_secs)
-                self.mysocket.connect((self.ip, self.port))
-         
-                dtime = datetime.datetime.now()
-                identity = self.getIdent()
-                out_volts = self.getOutputVolts()
-                out_amps = self.getOutputAmps()
-                target_volts = self.getTargetVolts()
-                target_amps = self.getTargetAmps()
-                is_enabled = self.getOutputIsEnabled()
-                amp_range = self.getAmpRange()
-                dataset = DataToGui(True, dtime, identity,
-                                        out_volts, out_amps,
-                                        target_volts, target_amps,
-                                        is_enabled, amp_range)
-                return dataset
+        dtime = datetime.datetime.now()
+        identity = self.getIdent()
+        out_volts = self.getOutputVolts()
+        out_amps = self.getOutputAmps()
+        target_volts = self.getTargetVolts()
+        target_amps = self.getTargetAmps()
+        is_enabled = self.getOutputIsEnabled()
+        amp_range = self.getAmpRange()
+        dataset = DataToGui(True, dtime, identity,
+                                out_volts, out_amps,
+                                target_volts, target_amps,
+                                is_enabled, amp_range)
+        return dataset
 
 
 '''
