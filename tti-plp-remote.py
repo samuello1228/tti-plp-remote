@@ -10,6 +10,13 @@ from tkinter import ttk
 #f2 = ttk.Frame(..., style=...)
 #Then its obvious which widget you are using, at the expense of just a tiny bit more typing
 
+#Qt
+import sys
+from PySide2.QtCore import Qt, Slot, QTimer 
+from PySide2.QtWidgets import QApplication, QMainWindow, QWidget
+from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout
+from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton
+
 isEmulate = False
 isEmulate = True
 
@@ -430,6 +437,203 @@ class CmdToTTi(object):
                                                                          
 '''
 
+class MyWidget(QWidget):
+    def __init__(self):
+        QWidget.__init__(self)
+
+        self.ip = default_psu_ip
+        self.channel = 1
+        layout_final = QVBoxLayout()
+
+        #left top: ip
+        text = QLabel("IPv4 Address:", self)
+        text.setAlignment(Qt.AlignCenter)
+        self.ip_input = QLineEdit(self.ip, self)
+
+        top = QHBoxLayout()
+        top.addWidget(text)
+        top.addWidget(self.ip_input)
+
+        #left bottom: channel
+        text = QLabel("Channel:", self)
+        self.channel_input = QLineEdit("{0}".format(self.channel), self)
+
+        bottom = QHBoxLayout()
+        bottom.addWidget(text)
+        bottom.addWidget(self.channel_input)
+
+        left = QVBoxLayout()
+        left.addLayout(top)
+        left.addLayout(bottom)
+
+        #right: connect checkbox
+        self.checkbox = QCheckBox("connect", self)
+        layout = QHBoxLayout()
+        layout.addLayout(left)
+        layout.addWidget(self.checkbox)
+        layout_final.addLayout(layout)
+
+        #layout: Name
+        text = QLabel("Name:", self)
+        text.setAlignment(Qt.AlignRight)
+        self.name = QLabel("", self)
+
+        layout = QHBoxLayout()
+        layout.addWidget(text)
+        layout.addWidget(self.name)
+        layout_final.addLayout(layout)
+
+        #layout: Time
+        text = QLabel("Time:", self)
+        text.setAlignment(Qt.AlignRight)
+        self.time = QLabel("", self)
+
+        layout = QHBoxLayout()
+        layout.addWidget(text)
+        layout.addWidget(self.time)
+        layout_final.addLayout(layout)
+
+        #layout: target voltage
+        text = QLabel("Target Voltage (V):", self)
+        self.target_voltage_input = QLineEdit("12", self)
+        self.target_voltage_output = QLineEdit("", self)
+        self.target_voltage_output.setReadOnly(True)
+
+        layout = QHBoxLayout()
+        layout.addWidget(text)
+        layout.addWidget(self.target_voltage_input)
+        layout.addWidget(self.target_voltage_output)
+        layout_final.addLayout(layout)
+
+        #layout: output voltage
+        text = QLabel("Output Voltage (V):", self)
+        self.output_voltage = QLineEdit("", self)
+        self.output_voltage.setReadOnly(True)
+
+        layout = QHBoxLayout()
+        layout.addWidget(text)
+        layout.addWidget(self.output_voltage)
+        layout_final.addLayout(layout)
+
+        #layout: current limit
+        text = QLabel("Current Limit (mA):", self)
+        self.current_limit_input = QLineEdit("500", self)
+        self.current_limit_output = QLineEdit("", self)
+        self.current_limit_output.setReadOnly(True)
+
+        layout = QHBoxLayout()
+        layout.addWidget(text)
+        layout.addWidget(self.current_limit_input)
+        layout.addWidget(self.current_limit_output)
+        layout_final.addLayout(layout)
+
+        #layout: output current
+        text = QLabel("Output Current (mA):", self)
+        self.output_current = QLineEdit("", self)
+        self.output_current.setReadOnly(True)
+
+        layout = QHBoxLayout()
+        layout.addWidget(text)
+        layout.addWidget(self.output_current)
+        layout_final.addLayout(layout)
+
+        #layout: switch output
+        self.switch_input = QPushButton("Switch Output", self)
+        self.switch_output = QLabel("", self)
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.switch_input)
+        layout.addWidget(self.switch_output)
+        layout_final.addLayout(layout)
+
+        self.setLayout(layout_final)
+
+        #signal and slot
+        self.ip_input.returnPressed.connect(self.update_ip)
+        self.channel_input.returnPressed.connect(self.update_channel)
+        self.checkbox.stateChanged.connect(self.connect)
+        self.target_voltage_input.returnPressed.connect(self.set_target_voltage)
+        self.current_limit_input.returnPressed.connect(self.set_current_limit)
+        self.switch_input.clicked.connect(self.toggle_switch)
+
+        #Timer
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_data)
+
+    @Slot()
+    def update_ip(self):
+        self.ip = self.ip_input.text()
+
+    @Slot()
+    def update_channel(self):
+        self.channel = int(self.channel_input.text())
+
+    @Slot()
+    def connect(self):
+        if self.checkbox.isChecked():
+            print("connecting " + self.ip)
+            self.timer.start(sample_interval_secs *1000)
+            self.tti = ttiPsu(self.ip, self.channel)
+
+            isON = self.tti.getOutputIsEnabled()
+            if isON:
+                self.switch_output.setText("Output is ON")
+            else:
+                self.switch_output.setText("Output is OFF")
+
+            print("successful connection.")
+        else:
+            print("disconnecting...")
+            self.timer.stop()
+
+            self.name.setText("")
+            self.time.setText("")
+            self.target_voltage_output.setText("")
+            self.output_voltage.setText("")
+            self.current_limit_output.setText("")
+            self.output_current.setText("")
+            self.switch_output.setText("")
+            print("successful disconnection.")
+
+    @Slot()
+    def update_data(self):
+        data = self.tti.GetData()
+        data.print()
+
+        self.name.setText(data.identity)
+        self.time.setText(data.dtime.strftime('%c'))
+        self.target_voltage_output.setText("{0:.3f}".format(data.target_volts))
+        self.output_voltage.setText("{0:.3f}".format(data.out_volts))
+        self.current_limit_output.setText("{0}".format(int(data.target_amps*1000)))
+        self.output_current.setText("{0}".format(int(data.out_amps*1000)))
+
+    @Slot()
+    def set_target_voltage(self):
+        if self.checkbox.isChecked():
+            self.tti.setTargetVolts(float(self.target_voltage_input.text()))
+
+    @Slot()
+    def set_current_limit(self):
+        if self.checkbox.isChecked():
+            self.tti.setTargetAmps(float(self.current_limit_input.text())/1000)
+
+    @Slot()
+    def toggle_switch(self):
+        if self.checkbox.isChecked():
+            isON = self.tti.getOutputIsEnabled()
+            if isON:
+                self.tti.setOutputEnable(False)
+                self.switch_output.setText("Output is OFF")
+            else:
+                self.tti.setOutputEnable(True)
+                self.switch_output.setText("Output is ON")
+
+class MainWindow(QMainWindow):
+    def __init__(self, widget):
+        QMainWindow.__init__(self)
+        self.setWindowTitle("Power Supply Remote")
+        self.setCentralWidget(widget)
+
 
 class FrameIpAddr(ttk.LabelFrame):
 
@@ -789,7 +993,8 @@ if __name__ == '__main__':
         root.mainloop()
         root = None
 
-    else:
+    #if True:
+    if False:
         ip = default_psu_ip
         channel = 1
         print("ip: " + ip)
@@ -868,3 +1073,14 @@ if __name__ == '__main__':
                             print('Set current limit {0} mA'.format(int(i)))
                             cmd = CmdToTTi('SET AMPS', float(i)/1000.0)
                             commQueueTx.put(cmd)
+
+    if True:
+    #if False:
+        app = QApplication([])
+ 
+        widget = MyWidget()
+        window = MainWindow(widget)
+        window.resize(350, 300)
+        window.show()
+ 
+        sys.exit(app.exec_())
