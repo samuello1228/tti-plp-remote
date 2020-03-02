@@ -496,8 +496,7 @@ class MyWidget(QWidget):
         #layout: target voltage
         text = QLabel("Target Voltage (V):", self)
         self.target_voltage_input = QLineEdit("", self)
-        self.target_voltage_output = QLineEdit("", self)
-        self.target_voltage_output.setReadOnly(True)
+        self.target_voltage_output = QLabel("", self)
 
         layout = QHBoxLayout()
         layout.addWidget(text)
@@ -507,8 +506,7 @@ class MyWidget(QWidget):
 
         #layout: output voltage
         text = QLabel("Output Voltage (V):", self)
-        self.output_voltage = QLineEdit("", self)
-        self.output_voltage.setReadOnly(True)
+        self.output_voltage = QLabel("", self)
 
         layout = QHBoxLayout()
         layout.addWidget(text)
@@ -518,8 +516,7 @@ class MyWidget(QWidget):
         #layout: current limit
         text = QLabel("Current Limit (mA):", self)
         self.current_limit_input = QLineEdit("", self)
-        self.current_limit_output = QLineEdit("", self)
-        self.current_limit_output.setReadOnly(True)
+        self.current_limit_output = QLabel("", self)
 
         layout = QHBoxLayout()
         layout.addWidget(text)
@@ -529,8 +526,7 @@ class MyWidget(QWidget):
 
         #layout: output current
         text = QLabel("Output Current (mA):", self)
-        self.output_current = QLineEdit("", self)
-        self.output_current.setReadOnly(True)
+        self.output_current = QLabel("", self)
 
         layout = QHBoxLayout()
         layout.addWidget(text)
@@ -582,10 +578,10 @@ class MyWidget(QWidget):
             self.name.setText(data.identity)
             self.time.setText(data.dtime.strftime('%c'))
             self.target_voltage_input.setText("{0:.3f}".format(data.target_volts))
-            self.target_voltage_output.setText("{0:.3f}".format(data.target_volts))
+            self.target_voltage_output.setText("setpoint: {0:.3f}".format(data.target_volts))
             self.output_voltage.setText("{0:.3f}".format(data.out_volts))
             self.current_limit_input.setText("{0}".format(int(data.target_amps*1000)))
-            self.current_limit_output.setText("{0}".format(int(data.target_amps*1000)))
+            self.current_limit_output.setText("setpoint: {0}".format(int(data.target_amps*1000)))
             self.output_current.setText("{0}".format(int(data.out_amps*1000)))
             isON = self.tti.getOutputIsEnabled()
 
@@ -602,9 +598,7 @@ class MyWidget(QWidget):
 
             self.name.setText("")
             self.time.setText("")
-            self.target_voltage_output.setText("")
             self.output_voltage.setText("")
-            self.current_limit_output.setText("")
             self.output_current.setText("")
             self.switch_output.setText("")
             print("successful disconnection.")
@@ -616,9 +610,9 @@ class MyWidget(QWidget):
 
         self.name.setText(data.identity)
         self.time.setText(data.dtime.strftime('%c'))
-        self.target_voltage_output.setText("{0:.3f}".format(data.target_volts))
+        self.target_voltage_output.setText("setpoint: {0:.3f}".format(data.target_volts))
         self.output_voltage.setText("{0:.3f}".format(data.out_volts))
-        self.current_limit_output.setText("{0}".format(int(data.target_amps*1000)))
+        self.current_limit_output.setText("setpoint: {0}".format(int(data.target_amps*1000)))
         self.output_current.setText("{0}".format(int(data.out_amps*1000)))
 
     @Slot()
