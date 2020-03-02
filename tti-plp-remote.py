@@ -230,7 +230,6 @@ class ttiPsu(object):
 
     def GetData(self):
         # Gather data from PSU
-        dtime = datetime.datetime.now()
         identity = self.getIdent()
         out_volts = self.getOutputVolts()
         out_amps = self.getOutputAmps()
@@ -238,7 +237,7 @@ class ttiPsu(object):
         target_amps = self.getTargetAmps()
         is_enabled = self.getOutputIsEnabled()
         amp_range = self.getAmpRange()
-        dataset = DataToGui(True, dtime, identity,
+        dataset = DataToGui(identity,
                                 out_volts, out_amps,
                                 target_volts, target_amps,
                                 is_enabled, amp_range)
@@ -267,9 +266,7 @@ tti.setLocal()
 '''
 
 class DataToGui(object):
-    def __init__(self, valid, dtime, identity, out_volts, out_amps, target_volts, target_amps, is_enabled, amp_range):
-        self.valid = valid
-        self.dtime = dtime
+    def __init__(self, identity, out_volts, out_amps, target_volts, target_amps, is_enabled, amp_range):
         self.identity = identity
         self.out_volts = out_volts
         self.out_amps = out_amps
@@ -279,7 +276,6 @@ class DataToGui(object):
         self.amp_range = amp_range
         
     def print(self):
-        print('Time: ' + self.dtime.strftime('%c'))
         print('Name: ' + self.identity)
         print('isEnabled: {}'.format(self.is_enabled))
         print('Target Voltage: {0:.3f} V'.format(self.target_volts))
@@ -432,12 +428,14 @@ class MyWidget(QWidget):
             self.timer.start(sample_interval_secs *1000)
             self.tti = ttiPsu(self.ip, self.channel)
 
+            dtime = datetime.datetime.now()
+            self.time.setText(dtime.strftime('%c'))
+
             #get data
             data = self.tti.GetData()
             data.print()
          
             self.name.setText(data.identity)
-            self.time.setText(data.dtime.strftime('%c'))
             self.target_voltage_input.setText("{0:.3f}".format(data.target_volts))
             self.target_voltage_output.setText("setpoint: {0:.3f}".format(data.target_volts))
             self.output_voltage.setText("{0:.3f}".format(data.out_volts))
@@ -466,11 +464,13 @@ class MyWidget(QWidget):
 
     @Slot()
     def update_data(self):
+        dtime = datetime.datetime.now()
+        self.time.setText(dtime.strftime('%c'))
+
         data = self.tti.GetData()
         data.print()
 
         self.name.setText(data.identity)
-        self.time.setText(data.dtime.strftime('%c'))
         self.target_voltage_output.setText("setpoint: {0:.3f}".format(data.target_volts))
         self.output_voltage.setText("{0:.3f}".format(data.out_volts))
         self.current_limit_output.setText("setpoint: {0}".format(int(data.target_amps*1000)))
