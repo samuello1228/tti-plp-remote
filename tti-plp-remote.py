@@ -18,7 +18,7 @@ from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout
 from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton
 
 isEmulate = False
-isEmulate = True
+#isEmulate = True
 
 #default_psu_ip = '192.168.1.100'
 default_psu_ip ='169.254.100.78'
@@ -495,7 +495,7 @@ class MyWidget(QWidget):
 
         #layout: target voltage
         text = QLabel("Target Voltage (V):", self)
-        self.target_voltage_input = QLineEdit("12", self)
+        self.target_voltage_input = QLineEdit("", self)
         self.target_voltage_output = QLineEdit("", self)
         self.target_voltage_output.setReadOnly(True)
 
@@ -517,7 +517,7 @@ class MyWidget(QWidget):
 
         #layout: current limit
         text = QLabel("Current Limit (mA):", self)
-        self.current_limit_input = QLineEdit("500", self)
+        self.current_limit_input = QLineEdit("", self)
         self.current_limit_output = QLineEdit("", self)
         self.current_limit_output.setReadOnly(True)
 
@@ -575,8 +575,21 @@ class MyWidget(QWidget):
             self.timer.start(sample_interval_secs *1000)
             self.tti = ttiPsu(self.ip, self.channel)
 
+            #get data
+            data = self.tti.GetData()
+            data.print()
+         
+            self.name.setText(data.identity)
+            self.time.setText(data.dtime.strftime('%c'))
+            self.target_voltage_input.setText("{0:.3f}".format(data.target_volts))
+            self.target_voltage_output.setText("{0:.3f}".format(data.target_volts))
+            self.output_voltage.setText("{0:.3f}".format(data.out_volts))
+            self.current_limit_input.setText("{0}".format(int(data.target_amps*1000)))
+            self.current_limit_output.setText("{0}".format(int(data.target_amps*1000)))
+            self.output_current.setText("{0}".format(int(data.out_amps*1000)))
             isON = self.tti.getOutputIsEnabled()
-            if isON:
+
+            if data.is_enabled:
                 self.switch_output.setText("Output is ON")
             else:
                 self.switch_output.setText("Output is OFF")
@@ -585,6 +598,7 @@ class MyWidget(QWidget):
         else:
             print("disconnecting...")
             self.timer.stop()
+            self.tti.setLocal() 
 
             self.name.setText("")
             self.time.setText("")
