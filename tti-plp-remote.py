@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 import sys, socket, datetime
 
 #Qt
@@ -11,7 +10,6 @@ from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton
 isEmulate = False
 #isEmulate = True
 
-#default_psu_ip = '192.168.1.100'
 default_psu_ip ='169.254.100.78'
 sample_interval_secs = 2.5
 
@@ -25,7 +23,6 @@ class ttiPsu(object):
         self.port = 9221 #default port for socket control
         #channel=1 for single PSU and right hand of Dual PSU
         self.channel = channel
-        self.ident_string = ''
         self.sock_timeout_secs = 4
         self.packet_end = bytes('\r\n','ascii')
         print('Using port', self.port)
@@ -66,13 +63,12 @@ class ttiPsu(object):
 
     def send_receive_string(self, cmd):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            self.mysocket = s
-            self.mysocket.settimeout(self.sock_timeout_secs)
-            self.mysocket.connect((self.ip, self.port))
+            s.settimeout(self.sock_timeout_secs)
+            s.connect((self.ip, self.port))
+            s.sendall(bytes(cmd,'ascii'))
 
             #print('Cmd', repr(cmd))
-            self.mysocket.sendall(bytes(cmd,'ascii'))
-            data = self.recv_end(self.mysocket)
+            data = self.recv_end(s)
 
         #print('Received', repr(data))
         return data.decode('ascii')
@@ -99,8 +95,8 @@ class ttiPsu(object):
         if isEmulate:
             return self.identity_emulate
         else:
-            self.ident_string = self.send_receive_string('*IDN?')
-            return self.ident_string.strip()
+            ident_string = self.send_receive_string('*IDN?')
+            return ident_string.strip()
 
     '''
     def getConfig(self):
