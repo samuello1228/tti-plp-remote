@@ -8,7 +8,7 @@ from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout
 from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton
 
 isEmulate = False
-#isEmulate = True
+isEmulate = True
 
 default_psu_ip ='169.254.100.78'
 sample_interval_secs = 2.5
@@ -29,7 +29,6 @@ class ttiPsu(object):
 
         if isEmulate:
             self.identity_emulate = "My Power Supply"
-            self.out_volts_emulate = 12.0
             self.target_volts_emulate = 12.0
             self.target_amps_emulate = 0.5
             self.is_enabled_emulate = False
@@ -150,7 +149,10 @@ class ttiPsu(object):
 
     def getOutputVolts(self):
         if isEmulate:
-            v = self.out_volts_emulate
+            if self.is_enabled_emulate:
+                v = self.target_volts_emulate
+            else:
+                v = 0
         else:
             cmd = 'V{}O?'.format(self.channel)
             v = self.send_receive_float(cmd)
@@ -158,7 +160,10 @@ class ttiPsu(object):
 
     def getOutputAmps(self):
         if isEmulate:
-            v = self.out_volts_emulate / self.resistance_emulate
+            if self.is_enabled_emulate:
+                v = self.target_volts_emulate / self.resistance_emulate
+            else:
+                v = 0
         else:
             cmd = 'I{}O?'.format(self.channel)
             v = self.send_receive_float(cmd)
@@ -209,7 +214,6 @@ class ttiPsu(object):
     def setTargetVolts(self, volts):
         if isEmulate:
             self.target_volts_emulate = volts
-            self.out_volts_emulate = volts
         else:
             cmd = 'V{0} {1:2.3f}'.format(self.channel, volts)
             self.send_only(cmd)
