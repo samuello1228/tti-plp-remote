@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import sys, socket, datetime
+from random import seed, gauss
 
 #Qt
 from PySide2.QtCore import Qt, Slot, QTimer 
@@ -35,6 +36,9 @@ class ttiPsu(object):
             self.amp_range_emulate = 1
 
             self.resistance_emulate = 33.0
+            self.out_volts_emulate = 0.0
+
+            seed(1)
 
     def send_only(self, cmd):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -150,7 +154,8 @@ class ttiPsu(object):
     def getOutputVolts(self):
         if isEmulate:
             if self.is_enabled_emulate:
-                v = self.target_volts_emulate
+                v = gauss(self.target_volts_emulate, 0.1)
+                self.out_volts_emulate = v
             else:
                 v = 0
         else:
@@ -161,7 +166,7 @@ class ttiPsu(object):
     def getOutputAmps(self):
         if isEmulate:
             if self.is_enabled_emulate:
-                v = self.target_volts_emulate / self.resistance_emulate
+                v = self.out_volts_emulate / self.resistance_emulate
             else:
                 v = 0
         else:
