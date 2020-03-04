@@ -428,9 +428,11 @@ class MyWidget(QWidget):
         self.timer.timeout.connect(self.update_data)
 
         #Line Chart
-        self.series = QtCharts.QLineSeries()
+        self.series_voltage = QtCharts.QLineSeries()
+        self.series_current = QtCharts.QLineSeries()
         chart = QtCharts.QChart()
-        chart.addSeries(self.series)
+        chart.addSeries(self.series_voltage)
+        chart.addSeries(self.series_current)
         chart.legend().hide()
         #chart.setTitle("")
 
@@ -441,15 +443,24 @@ class MyWidget(QWidget):
         self.axisX.setMin(QDateTime().currentDateTime().addSecs(-60))
         self.axisX.setMax(QDateTime().currentDateTime())
         chart.addAxis(self.axisX, Qt.AlignBottom)
-        self.series.attachAxis(self.axisX)
+        self.series_voltage.attachAxis(self.axisX)
+        self.series_current.attachAxis(self.axisX)
 
-        axisY = QtCharts.QValueAxis()
-        axisY.setTickCount(8)
-        axisY.setLabelFormat("%.3f")
-        axisY.setTitleText("Voltage")
-        axisY.setRange(0,14)
-        chart.addAxis(axisY, Qt.AlignLeft)
-        self.series.attachAxis(axisY)
+        axisY_voltage = QtCharts.QValueAxis()
+        axisY_voltage.setTickCount(8)
+        axisY_voltage.setLabelFormat("%.3f")
+        axisY_voltage.setTitleText("Voltage (V)")
+        axisY_voltage.setRange(0,14)
+        chart.addAxis(axisY_voltage, Qt.AlignLeft)
+        self.series_voltage.attachAxis(axisY_voltage)
+        
+        axisY_current = QtCharts.QValueAxis()
+        axisY_current.setTickCount(8)
+        axisY_current.setLabelFormat("%i")
+        axisY_current.setTitleText("Current (mA)")
+        axisY_current.setRange(0,700)
+        chart.addAxis(axisY_current, Qt.AlignRight)
+        self.series_current.attachAxis(axisY_current)
 
         chartView.setChart(chart)
         chartView.setRenderHint(QPainter.Antialiasing)
@@ -490,7 +501,8 @@ class MyWidget(QWidget):
             else:
                 self.switch_output.setText("Output is OFF")
 
-            self.series.append(QDateTime().currentDateTime().toMSecsSinceEpoch(), data.out_volts)
+            self.series_voltage.append(QDateTime().currentDateTime().toMSecsSinceEpoch(), data.out_volts)
+            self.series_current.append(QDateTime().currentDateTime().toMSecsSinceEpoch(), data.out_amps*1000)
             self.axisX.setMin(QDateTime().currentDateTime().addSecs(-60))
             self.axisX.setMax(QDateTime().currentDateTime())
 
@@ -521,7 +533,8 @@ class MyWidget(QWidget):
         self.current_limit_output.setText("setpoint: {0}".format(int(data.target_amps*1000)))
         self.output_current.setText("{0}".format(int(data.out_amps*1000)))
 
-        self.series.append(QDateTime().currentDateTime().toMSecsSinceEpoch(), data.out_volts)
+        self.series_voltage.append(QDateTime().currentDateTime().toMSecsSinceEpoch(), data.out_volts)
+        self.series_current.append(QDateTime().currentDateTime().toMSecsSinceEpoch(), data.out_amps*1000)
         self.axisX.setMin(QDateTime().currentDateTime().addSecs(-60))
         self.axisX.setMax(QDateTime().currentDateTime())
 
