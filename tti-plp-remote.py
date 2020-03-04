@@ -3,10 +3,12 @@ import sys, socket, datetime
 from random import seed, gauss
 
 #Qt
-from PySide2.QtCore import Qt, Slot, QTimer 
+from PySide2.QtCore import Qt, Slot, QTimer, QDateTime 
 from PySide2.QtWidgets import QApplication, QMainWindow, QWidget
 from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout
 from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton
+from PySide2.QtCharts import QtCharts
+from PySide2.QtGui import QPainter
 
 isEmulate = False
 isEmulate = True
@@ -408,6 +410,9 @@ class MyWidget(QWidget):
         layout.addWidget(self.switch_output)
         layout_final.addLayout(layout)
 
+        #layout: ChartView
+        chartView = QtCharts.QChartView()
+        layout_final.addWidget(chartView)
         self.setLayout(layout_final)
 
         #signal and slot
@@ -421,6 +426,33 @@ class MyWidget(QWidget):
         #Timer
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_data)
+
+        #Line Chart
+        self.series = QtCharts.QLineSeries()
+        chart = QtCharts.QChart()
+        chart.addSeries(self.series)
+        chart.legend().hide()
+        #chart.setTitle("")
+
+        self.axisX = QtCharts.QDateTimeAxis()
+        self.axisX.setTickCount(5)
+        self.axisX.setFormat("hh:mm:ss")
+        self.axisX.setTitleText("Time")
+        self.axisX.setMin(QDateTime().currentDateTime().addSecs(-60))
+        self.axisX.setMax(QDateTime().currentDateTime())
+        chart.addAxis(self.axisX, Qt.AlignBottom)
+        self.series.attachAxis(self.axisX)
+
+        axisY = QtCharts.QValueAxis()
+        axisY.setTickCount(8)
+        axisY.setLabelFormat("%.3f")
+        axisY.setTitleText("Voltage")
+        axisY.setRange(0,14)
+        chart.addAxis(axisY, Qt.AlignLeft)
+        self.series.attachAxis(axisY)
+
+        chartView.setChart(chart)
+        chartView.setRenderHint(QPainter.Antialiasing)
 
     @Slot()
     def update_ip(self):
@@ -458,6 +490,10 @@ class MyWidget(QWidget):
             else:
                 self.switch_output.setText("Output is OFF")
 
+            self.series.append(QDateTime().currentDateTime().toMSecsSinceEpoch(), data.out_volts)
+            self.axisX.setMin(QDateTime().currentDateTime().addSecs(-60))
+            self.axisX.setMax(QDateTime().currentDateTime())
+
             print("successful connection.")
         else:
             print("disconnecting...")
@@ -484,6 +520,10 @@ class MyWidget(QWidget):
         self.output_voltage.setText("{0:.3f}".format(data.out_volts))
         self.current_limit_output.setText("setpoint: {0}".format(int(data.target_amps*1000)))
         self.output_current.setText("{0}".format(int(data.out_amps*1000)))
+
+        self.series.append(QDateTime().currentDateTime().toMSecsSinceEpoch(), data.out_volts)
+        self.axisX.setMin(QDateTime().currentDateTime().addSecs(-60))
+        self.axisX.setMax(QDateTime().currentDateTime())
 
     @Slot()
     def set_target_voltage(self):
@@ -529,7 +569,7 @@ if __name__ == '__main__':
  
         widget = MyWidget()
         window = MainWindow(widget)
-        window.resize(350, 300)
+        window.resize(800, 800)
         window.show()
  
         sys.exit(app.exec_())
