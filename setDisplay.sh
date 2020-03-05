@@ -1,6 +1,7 @@
 #sudo apt-get install libxkbcommon-x11-0
 export DISPLAY=localhost:0.0
 export LIBGL_ALWAYS_INDIRECT=1
+export XDG_RUNTIME_DIR=/tmp/runtime-samuel
 
 #The following packages are not required
 #sudo apt-get install mesa-common-dev
