@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-import sys, socket, datetime
+import sys, datetime
+from SocketTool import SocketTool
 
 #Qt
 from PySide2.QtCore import Qt, Slot, QTimer, QDateTime 
@@ -13,76 +14,34 @@ default_ip ='169.254.5.157'
 sample_interval_secs = 2.5
 
 class MDO3000(object):
-
     def __init__(self, ip):
-        self.ip = ip
-        self.port = 4000 #default port for socket control
+        port = 4000 #default port for socket control
+        self.MySocket = SocketTool(ip,port)
         self.channel = 1
-        self.sock_timeout_secs = 4
-        self.packet_end = bytes('\r\n','ascii')
-        print('Using port', self.port)
-
-    def send_only(self, cmd):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(self.sock_timeout_secs)
-            s.connect((self.ip, self.port))
-            s.sendall(bytes(cmd,'ascii'))
-
-    def recv_end(self, the_socket):
-        total_data=[]
-        data=''
-        while True:
-            data=the_socket.recv(1024)
-            if self.packet_end in data:
-                total_data.append(data[:data.find(self.packet_end)])
-                break
-            total_data.append(data)
-            if len(total_data)>1:
-                #check if end_of_data was split
-                last_pair=total_data[-2]+total_data[-1]
-                if self.packet_end in last_pair:
-                    total_data[-2]=last_pair[:last_pair.find(self.packet_end)]
-                    total_data.pop()
-                    break
-        return b''.join(total_data)
-
-    def send_receive_string(self, cmd):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(self.sock_timeout_secs)
-            s.connect((self.ip, self.port))
-            s.sendall(bytes(cmd,'ascii'))
-
-            #print('Cmd', repr(cmd))
-            data = self.recv_end(s)
-
-        #print('Received', repr(data))
-        return data.decode('ascii')
 
     def send_receive_float(self, cmd):
-        r = self.send_receive_string(cmd)
-        #Eg. '-0.007V\r\n'  '31.500\r\n'  'V2 3.140\r\n'
-        r=r.rstrip('\r\nVA') #Strip these trailing chars
+        r = self.MySocket.send_receive_string(cmd)
         l=r.rsplit() #Split to array of strings
         if len(l) > 0:
             return float(l[-1]) #Convert number in last string to float
         return 0.0
 
     def send_receive_integer(self, cmd):
-        r = self.send_receive_string(cmd)
+        r = self.MySocket.send_receive_string(cmd)
         return int(r)
 
     def send_receive_boolean(self, cmd):
-        if self.send_receive_integer(cmd) > 0:
+        if self.MySocket.send_receive_integer(cmd) > 0:
             return True
         return False
 
     def getIdent(self):
-        ident_string = self.send_receive_string('*IDN?')
+        ident_string = self.MySocket.send_receive_string('*IDN?')
         return ident_string.strip()
 
     def setLocal(self):
         cmd = 'LOCAL'
-        self.send_only(cmd)
+        self.MySocket.send_only(cmd)
 
 '''
 #Example usage:
@@ -160,12 +119,11 @@ class MyWidget(QWidget):
             dtime = datetime.datetime.now()
             self.time.setText(dtime.strftime('%c'))
 
-            print("successful connection.")
-
         else:
             print("disconnecting...")
             #self.tti.setLocal() 
-            print("successful disconnection.")
+            del self.MDO
+            print("disconnect successfully.")
 
 class MainWindow(QMainWindow):
     def __init__(self, widget):

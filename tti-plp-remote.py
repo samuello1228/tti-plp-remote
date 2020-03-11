@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-import sys, socket, datetime
+import sys, datetime
+from SocketTool import SocketTool
 from random import seed, gauss
 
 #Qt
@@ -11,7 +12,7 @@ from PySide2.QtCharts import QtCharts
 from PySide2.QtGui import QPainter
 
 isEmulate = False
-isEmulate = True
+#isEmulate = True
 
 default_psu_ip ='169.254.100.78'
 sample_interval_secs = 2.5
@@ -22,13 +23,11 @@ max_milliamp_setting = 3000
 class ttiPsu(object):
 
     def __init__(self, ip, channel=1):
-        self.ip = ip
-        self.port = 9221 #default port for socket control
+        port = 9221 #default port for socket control
+        self.MySocket = SocketTool(ip,port)
+
         #channel=1 for single PSU and right hand of Dual PSU
         self.channel = channel
-        self.sock_timeout_secs = 4
-        self.packet_end = bytes('\r\n','ascii')
-        print('Using port', self.port)
 
         if isEmulate:
             self.identity_emulate = "My Power Supply"
@@ -42,44 +41,8 @@ class ttiPsu(object):
 
             seed(1)
 
-    def send_only(self, cmd):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(self.sock_timeout_secs)
-            s.connect((self.ip, self.port))
-            s.sendall(bytes(cmd,'ascii'))
-
-    def recv_end(self, the_socket):
-        total_data=[]
-        data=''
-        while True:
-            data=the_socket.recv(1024)
-            if self.packet_end in data:
-                total_data.append(data[:data.find(self.packet_end)])
-                break
-            total_data.append(data)
-            if len(total_data)>1:
-                #check if end_of_data was split
-                last_pair=total_data[-2]+total_data[-1]
-                if self.packet_end in last_pair:
-                    total_data[-2]=last_pair[:last_pair.find(self.packet_end)]
-                    total_data.pop()
-                    break
-        return b''.join(total_data)
-
-    def send_receive_string(self, cmd):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(self.sock_timeout_secs)
-            s.connect((self.ip, self.port))
-            s.sendall(bytes(cmd,'ascii'))
-
-            #print('Cmd', repr(cmd))
-            data = self.recv_end(s)
-
-        #print('Received', repr(data))
-        return data.decode('ascii')
-
     def send_receive_float(self, cmd):
-        r = self.send_receive_string(cmd)
+        r = self.MySocket.send_receive_string(cmd)
         #Eg. '-0.007V\r\n'  '31.500\r\n'  'V2 3.140\r\n'
         r=r.rstrip('\r\nVA') #Strip these trailing chars
         l=r.rsplit() #Split to array of strings
@@ -88,7 +51,7 @@ class ttiPsu(object):
         return 0.0
 
     def send_receive_integer(self, cmd):
-        r = self.send_receive_string(cmd)
+        r = self.MySocket.send_receive_string(cmd)
         return int(r)
 
     def send_receive_boolean(self, cmd):
@@ -100,7 +63,7 @@ class ttiPsu(object):
         if isEmulate:
             return self.identity_emulate
         else:
-            ident_string = self.send_receive_string('*IDN?')
+            ident_string = self.MySocket.send_receive_string('*IDN?')
             return ident_string.strip()
 
     '''
@@ -134,7 +97,7 @@ class ttiPsu(object):
             #Supported on PL series
             #Not supported on MX series
             cmd = 'IRANGE{} 1'.format(self.channel)
-            self.send_only(cmd)
+            self.MySocket.send_only(cmd)
 
     def setAmpRangeHigh(self):
         if isEmulate:
@@ -216,28 +179,28 @@ class ttiPsu(object):
                 cmd = 'OP{} 1'.format(self.channel)
             else:
                 cmd = 'OP{} 0'.format(self.channel)
-            self.send_only(cmd)
+            self.MySocket.send_only(cmd)
 
     def setTargetVolts(self, volts):
         if isEmulate:
             self.target_volts_emulate = volts
         else:
             cmd = 'V{0} {1:2.3f}'.format(self.channel, volts)
-            self.send_only(cmd)
+            self.MySocket.send_only(cmd)
 
     def setTargetAmps(self, amps):
         if isEmulate:
             self.target_amps_emulate = amps
         else:
             cmd = 'I{0} {1:1.3f}'.format(self.channel, amps)
-            self.send_only(cmd)
+            self.MySocket.send_only(cmd)
 
     def setLocal(self):
         if isEmulate:
             pass
         else:
             cmd = 'LOCAL'
-            self.send_only(cmd)
+            self.MySocket.send_only(cmd)
 
     def GetData(self):
         # Gather data from PSU
@@ -511,18 +474,18 @@ class MyWidget(QWidget):
             self.axisX.setMin(QDateTime().currentDateTime().addSecs(-60))
             self.axisX.setMax(QDateTime().currentDateTime())
 
-            print("successful connection.")
         else:
             print("disconnecting...")
             self.timer.stop()
             self.tti.setLocal() 
+            del self.tti
 
             self.name.setText("")
             self.time.setText("")
             self.output_voltage.setText("")
             self.output_current.setText("")
             self.switch_output.setText("")
-            print("successful disconnection.")
+            print("disconnect successfully.")
 
     @Slot()
     def update_data(self):
