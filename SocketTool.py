@@ -2,16 +2,16 @@
 import socket
 
 class SocketTool(object):
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, packet_end_string):
         sock_timeout_secs = 4
-        self.packet_end = bytes('\r\n','ascii')
+        self.packet_end = bytes(packet_end_string ,'ascii')
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.settimeout(sock_timeout_secs)
         self.s.connect((ip, port))
         print('Successfully connect socket, Using port', port)
 
     def send_only(self, cmd):
-        self.s.sendall(bytes(cmd,'ascii'))
+        self.s.sendall(bytes(cmd+"\r\n",'ascii'))
 
     def recv_end(self):
         total_data=[]
@@ -32,7 +32,7 @@ class SocketTool(object):
         return b''.join(total_data)
 
     def send_receive_string(self, cmd):
-        self.s.sendall(bytes(cmd,'ascii'))
+        self.s.sendall(bytes(cmd+"\r\n",'ascii'))
 
         #print('Cmd', repr(cmd))
         data = self.recv_end()

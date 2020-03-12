@@ -10,44 +10,24 @@ from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton
 from PySide2.QtCharts import QtCharts
 from PySide2.QtGui import QPainter
 
-default_ip ='169.254.5.157'
+default_ip ='169.254.50.194'
 sample_interval_secs = 2.5
 
 class MDO3000(object):
     def __init__(self, ip):
         port = 4000 #default port for socket control
-        self.MySocket = SocketTool(ip,port)
+        self.MySocket = SocketTool(ip, port, "\n")
+
         self.channel = 1
-
-    def send_receive_float(self, cmd):
-        r = self.MySocket.send_receive_string(cmd)
-        l=r.rsplit() #Split to array of strings
-        if len(l) > 0:
-            return float(l[-1]) #Convert number in last string to float
-        return 0.0
-
-    def send_receive_integer(self, cmd):
-        r = self.MySocket.send_receive_string(cmd)
-        return int(r)
-
-    def send_receive_boolean(self, cmd):
-        if self.MySocket.send_receive_integer(cmd) > 0:
-            return True
-        return False
 
     def getIdent(self):
         ident_string = self.MySocket.send_receive_string('*IDN?')
         return ident_string.strip()
 
-    def setLocal(self):
-        cmd = 'LOCAL'
-        self.MySocket.send_only(cmd)
-
 '''
 #Example usage:
 MDO = MDO3000("169.254.5.157")
 print(MDO.getIdent())
-tti.setLocal()
 '''
 
 '''
@@ -121,8 +101,9 @@ class MyWidget(QWidget):
 
         else:
             print("disconnecting...")
-            #self.tti.setLocal() 
             del self.MDO
+
+            self.name.setText("")
             print("disconnect successfully.")
 
 class MainWindow(QMainWindow):

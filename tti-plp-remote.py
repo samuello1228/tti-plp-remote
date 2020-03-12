@@ -24,7 +24,7 @@ class ttiPsu(object):
 
     def __init__(self, ip, channel=1):
         port = 9221 #default port for socket control
-        self.MySocket = SocketTool(ip,port)
+        self.MySocket = SocketTool(ip, port, "\r\n")
 
         #channel=1 for single PSU and right hand of Dual PSU
         self.channel = channel
