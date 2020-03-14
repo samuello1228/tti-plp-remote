@@ -18,6 +18,7 @@ class SocketTool(object):
         data=''
         while True:
             data=self.s.recv(1024)
+            #print(data)
             if self.packet_end in data:
                 total_data.append(data[:data.find(self.packet_end)])
                 break
