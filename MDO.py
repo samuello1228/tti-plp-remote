@@ -17,12 +17,24 @@ class MDO3000(object):
     def __init__(self, ip):
         port = 4000 #default port for socket control
         self.MySocket = SocketTool(ip, port, "\n")
-
-        self.channel = 1
+        self.clear()
 
     def getIdent(self):
         ident_string = self.MySocket.send_receive_string('*IDN?')
         return ident_string.strip()
+
+    def clear(self):
+        print("setting protocol Terminal")
+        print(self.MySocket.send_receive_string("SocketServer:protocol terminal",">"))
+        print("protocol Terminal has already been set")
+
+        print("sending !d")
+        print(self.MySocket.send_receive_string('!d'))
+        print("!d has already been sent")
+
+        print("setting protocol None")
+        print(self.MySocket.send_receive_string("SocketServer:protocol none",">"))
+        print("protocol None has already been set")
 
 '''
 #Example usage:
@@ -45,6 +57,8 @@ class MyWidget(QWidget):
         QWidget.__init__(self)
 
         self.ip = default_ip
+        self.nPoint = 1000
+        self.isShowChannel = [1,1,0,0]
         layout_final = QVBoxLayout()
 
         #layout: ip and connect checkbox
@@ -94,14 +108,19 @@ class MyWidget(QWidget):
         self.timer.timeout.connect(self.update_data)
 
         #Line Chart
-        self.series_ch1 = QtCharts.QLineSeries()
         chart = QtCharts.QChart()
-        chart.addSeries(self.series_ch1)
+        self.series = []
+        for i in range(len(self.isShowChannel)):
+            self.series.append(QtCharts.QLineSeries())
+            chart.addSeries(self.series[i])
+            for j in range(self.nPoint):
+                self.series[i].append(0,0)
 
         chart.legend().setVisible(True)
         chart.legend().setAlignment(Qt.AlignTop)
         markers = chart.legend().markers()
-        markers[0].setLabel("Ch1")
+        for i in range(len(self.isShowChannel)):
+            markers[i].setLabel("Ch{0}".format(i+1))
 
         self.axisX = QtCharts.QValueAxis()
         self.axisX.setTickCount(9)
@@ -109,7 +128,8 @@ class MyWidget(QWidget):
         self.axisX.setTitleText("Time (s)")
         self.axisX.setRange(-1e-7,3e-7)
         chart.addAxis(self.axisX, Qt.AlignBottom)
-        self.series_ch1.attachAxis(self.axisX)
+        for i in range(len(self.isShowChannel)):
+            self.series[i].attachAxis(self.axisX)
 
         self.axisY = QtCharts.QValueAxis()
         self.axisY.setTickCount(11)
@@ -117,14 +137,11 @@ class MyWidget(QWidget):
         self.axisY.setTitleText("Voltage (V)")
         self.axisY.setRange(-5e-3,5e-3)
         chart.addAxis(self.axisY, Qt.AlignLeft)
-        self.series_ch1.attachAxis(self.axisY)
+        for i in range(len(self.isShowChannel)):
+            self.series[i].attachAxis(self.axisY)
         
         chartView.setChart(chart)
         chartView.setRenderHint(QPainter.Antialiasing)
-
-        self.nPoint = 1000
-        for i in range(self.nPoint):
-            self.series_ch1.append(0,0)
 
     @Slot()
     def update_ip(self):
@@ -147,11 +164,14 @@ class MyWidget(QWidget):
             self.MDO.MySocket.send_only("data:encdg ascii")
             self.MDO.MySocket.send_only("data:width 1")
             #self.MDO.MySocket.send_only("data:width 2")
+            
+            self.MDO.MySocket.send_only("ACQuire:STOPAfter RunStop")
+            #self.MDO.MySocket.send_only("ACQuire:STOPAfter sequence")
+            print(self.MDO.MySocket.send_receive_string("ACQuire:STOPAfter?"))
 
             #self.MDO.MySocket.send_only(":header 1")
             #self.MDO.MySocket.send_only("verbose on")
             #print(self.MDO.MySocket.send_receive_string("WfmOutPre?"))
-            #print(self.MDO.MySocket.send_receive_string("ACQuire:STOPAfter?"))
             #self.MDO.MySocket.send_only("header 0")
 
             wfid = self.MDO.MySocket.send_receive_string("WfmOutPre:wfid?")
@@ -169,7 +189,7 @@ class MyWidget(QWidget):
             print("XINCR:", self.XINCR)
             self.XZERO = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XZERO?"))
             print("XZERO:", self.XZERO)
-            self.axisX.setRange(self.XZERO, self.XZERO *-3)
+            self.axisX.setRange(self.XZERO, self.XZERO + self.XINCR * self.nPoint)
 
             #y-axis
             self.YMULT = float(self.MDO.MySocket.send_receive_string("WfmOutPre:YMULT?"))
@@ -193,19 +213,43 @@ class MyWidget(QWidget):
         dtime = datetime.datetime.now()
         self.time.setText(dtime.strftime('%c'))
 
-        #get waveform
-        data = self.MDO.MySocket.send_receive_string("curve?")
-        data = data.split(",")
+        data = []
+        YMULT = []
+        YOFF = []
+        YZERO = []
+        for i in range(len(self.isShowChannel)):
+            if self.isShowChannel[i]:
+                self.MDO.MySocket.send_only("data:source CH{0}".format(i+1))
 
-        x = self.XZERO
-        index = 0
-        for element in data:
-            y = ( (int(element) - self.YOFF) * self.YMULT ) + self.YZERO
-            #print(x,y)
-            self.series_ch1.replace(index,x,y)
+                #self.MDO.MySocket.send_only(":header 1")
+                #self.MDO.MySocket.send_only("verbose on")
+                #print(self.MDO.MySocket.send_receive_string("WfmOutPre?"))
+                #self.MDO.MySocket.send_only("header 0")
 
-            index += 1
-            x += self.XINCR
+                #get waveform
+                data.append(self.MDO.MySocket.send_receive_string("curve?"))
+                YMULT.append(float(self.MDO.MySocket.send_receive_string("WfmOutPre:YMULT?")))
+                YOFF.append(int(float(self.MDO.MySocket.send_receive_string("WfmOutPre:YOFF?"))))
+                YZERO.append(float(self.MDO.MySocket.send_receive_string("WfmOutPre:YZERO?")))
+            else:
+                data.append("")
+                YMULT.append(0)
+                YOFF.append(0)
+                YZERO.append(0)
+
+        for i in range(len(self.isShowChannel)):
+            if self.isShowChannel[i]:
+                data[i] = data[i].split(",")
+
+                x = self.XZERO
+                index = 0
+                for element in data[i]:
+                    y = ( (int(element) - YOFF[i]) * YMULT[i] ) + YZERO[i]
+                    #print(x,y)
+                    self.series[i].replace(index,x,y)
+          
+                    index += 1
+                    x += self.XINCR
 
 class MainWindow(QMainWindow):
     def __init__(self, widget):
