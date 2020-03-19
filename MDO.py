@@ -58,7 +58,7 @@ class MyWidget(QWidget):
 
         self.ip = default_ip
         self.nPoint = 1000
-        self.isShowChannel = [1,1,0,0]
+        self.nChannel = 4
         layout_final = QVBoxLayout()
 
         #layout: ip and connect checkbox
@@ -110,7 +110,7 @@ class MyWidget(QWidget):
         #Line Chart
         chart = QtCharts.QChart()
         self.series = []
-        for i in range(len(self.isShowChannel)):
+        for i in range(self.nChannel):
             self.series.append(QtCharts.QLineSeries())
             chart.addSeries(self.series[i])
             for j in range(self.nPoint):
@@ -119,7 +119,7 @@ class MyWidget(QWidget):
         chart.legend().setVisible(True)
         chart.legend().setAlignment(Qt.AlignTop)
         markers = chart.legend().markers()
-        for i in range(len(self.isShowChannel)):
+        for i in range(self.nChannel):
             markers[i].setLabel("Ch{0}".format(i+1))
 
         self.axisX = QtCharts.QValueAxis()
@@ -128,7 +128,7 @@ class MyWidget(QWidget):
         self.axisX.setTitleText("Time (s)")
         self.axisX.setRange(-1e-7,3e-7)
         chart.addAxis(self.axisX, Qt.AlignBottom)
-        for i in range(len(self.isShowChannel)):
+        for i in range(self.nChannel):
             self.series[i].attachAxis(self.axisX)
 
         self.axisY = QtCharts.QValueAxis()
@@ -137,7 +137,7 @@ class MyWidget(QWidget):
         self.axisY.setTitleText("Voltage (V)")
         self.axisY.setRange(-5e-3,5e-3)
         chart.addAxis(self.axisY, Qt.AlignLeft)
-        for i in range(len(self.isShowChannel)):
+        for i in range(self.nChannel):
             self.series[i].attachAxis(self.axisY)
         
         chartView.setChart(chart)
@@ -157,6 +157,10 @@ class MyWidget(QWidget):
 
             dtime = datetime.datetime.now()
             self.time.setText(dtime.strftime('%c'))
+            
+            self.isShowChannel = []
+            for i in range(self.nChannel):
+                self.isShowChannel.append(bool(int(self.MDO.MySocket.send_receive_string("Select:Ch{0}?".format(i+1)))))
 
             self.MDO.MySocket.send_only("data:source CH1")
             self.MDO.MySocket.send_only("data:start 1")
@@ -167,7 +171,6 @@ class MyWidget(QWidget):
             
             self.MDO.MySocket.send_only("ACQuire:STOPAfter RunStop")
             #self.MDO.MySocket.send_only("ACQuire:STOPAfter sequence")
-            print(self.MDO.MySocket.send_receive_string("ACQuire:STOPAfter?"))
 
             #self.MDO.MySocket.send_only(":header 1")
             #self.MDO.MySocket.send_only("verbose on")
