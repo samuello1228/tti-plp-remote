@@ -134,8 +134,9 @@ class MyWidget(QWidget):
         self.axisY = QtCharts.QValueAxis()
         self.axisY.setTickCount(11)
         self.axisY.setLabelFormat("%.1e")
-        self.axisY.setTitleText("Voltage (V)")
-        self.axisY.setRange(-5e-3,5e-3)
+        self.axisY.setTitleText("Voltage Division")
+        self.axisY.setRange(-5,5)
+        self.axisY.setLabelsVisible(False)
         chart.addAxis(self.axisY, Qt.AlignLeft)
         for i in range(self.nChannel):
             self.series[i].attachAxis(self.axisY)
@@ -183,25 +184,12 @@ class MyWidget(QWidget):
             wfid = wfid[1:-1].split(", ")
             print(wfid)
 
-            #remove mV/div
-            self.YDiv = float(wfid[2][:-6]) * 1E-3
-            print("YDiv:", self.YDiv, "V/div")
-
             #x-axis
             self.XINCR = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XINCR?"))
             print("XINCR:", self.XINCR)
             self.XZERO = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XZERO?"))
             print("XZERO:", self.XZERO)
             self.axisX.setRange(self.XZERO, self.XZERO + self.XINCR * self.nPoint)
-
-            #y-axis
-            self.YMULT = float(self.MDO.MySocket.send_receive_string("WfmOutPre:YMULT?"))
-            print("YMULT:", self.YMULT)
-            self.YOFF = int(float(self.MDO.MySocket.send_receive_string("WfmOutPre:YOFF?")))
-            print("YOFF:", self.YOFF)
-            self.YZERO = float(self.MDO.MySocket.send_receive_string("WfmOutPre:YZERO?"))
-            print("YZERO:", self.YZERO)
-            self.axisY.setRange(self.YDiv *-5, self.YDiv *5)
 
         else:
             print("disconnecting...")
@@ -220,6 +208,7 @@ class MyWidget(QWidget):
         YMULT = []
         YOFF = []
         YZERO = []
+        YDiv = []
         for i in range(len(self.isShowChannel)):
             if self.isShowChannel[i]:
                 self.MDO.MySocket.send_only("data:source CH{0}".format(i+1))
@@ -234,11 +223,13 @@ class MyWidget(QWidget):
                 YMULT.append(float(self.MDO.MySocket.send_receive_string("WfmOutPre:YMULT?")))
                 YOFF.append(int(float(self.MDO.MySocket.send_receive_string("WfmOutPre:YOFF?"))))
                 YZERO.append(float(self.MDO.MySocket.send_receive_string("WfmOutPre:YZERO?")))
+                YDiv.append(float(self.MDO.MySocket.send_receive_string("CH{0}:scale?".format(i+1))))
             else:
                 data.append("")
                 YMULT.append(0)
                 YOFF.append(0)
                 YZERO.append(0)
+                YDiv.append(0)
 
         for i in range(len(self.isShowChannel)):
             if self.isShowChannel[i]:
@@ -248,6 +239,7 @@ class MyWidget(QWidget):
                 index = 0
                 for element in data[i]:
                     y = ( (int(element) - YOFF[i]) * YMULT[i] ) + YZERO[i]
+                    y = y/YDiv[i]
                     #print(x,y)
                     self.series[i].replace(index,x,y)
           
