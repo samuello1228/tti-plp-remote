@@ -13,13 +13,13 @@ class SocketTool(object):
     def send_only(self, cmd):
         self.s.sendall(bytes(cmd+"\r\n",'ascii'))
 
-    def recv_end(self, end_string):
+    def recv_end(self, end_string, isPrint):
         end_byte = bytes(end_string ,'ascii')
         total_data=[]
         data=''
         while True:
             data=self.s.recv(1024)
-            #print(data)
+            if isPrint: print(data)
             if end_byte in data:
                 total_data.append(data[:data.find(end_byte)])
                 break
@@ -33,14 +33,14 @@ class SocketTool(object):
                     break
         return b''.join(total_data)
 
-    def send_receive_string(self, cmd, end_string = None):
+    def send_receive_string(self, cmd, end_string = None, isPrint = False):
         self.s.sendall(bytes(cmd+"\r\n",'ascii'))
 
         #print('Cmd', repr(cmd))
         if end_string == None:
-            data = self.recv_end(self.packet_end_string)
+            data = self.recv_end(self.packet_end_string, isPrint)
         else:
-            data = self.recv_end(end_string)
+            data = self.recv_end(end_string, isPrint)
 
         #print('Received', repr(data))
         return data.decode('ascii')

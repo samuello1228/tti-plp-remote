@@ -25,11 +25,11 @@ class MDO3000(object):
 
     def clear(self):
         print("setting protocol Terminal")
-        print(self.MySocket.send_receive_string("SocketServer:protocol terminal","> "))
+        print(self.MySocket.send_receive_string("SocketServer:protocol terminal", "> ", True))
         print("protocol Terminal has already been set")
 
         print("sending !d")
-        print(self.MySocket.send_receive_string('!d',"> "))
+        print(self.MySocket.send_receive_string('!d', "> ", True))
         print("!d has already been sent")
 
         print("setting protocol None")
