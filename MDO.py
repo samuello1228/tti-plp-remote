@@ -6,7 +6,7 @@ from SocketTool import SocketTool
 from PySide2.QtCore import Qt, Slot, QTimer, QDateTime 
 from PySide2.QtWidgets import QApplication, QMainWindow, QWidget
 from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout
-from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton
+from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton, QComboBox
 from PySide2.QtCharts import QtCharts
 from PySide2.QtGui import QPainter
 
@@ -106,6 +106,19 @@ class MyWidget(QWidget):
         layout.addWidget(self.x_scale_input_zoom_out)
         layout_final.addLayout(layout)
 
+        #layout: Vertical
+        text = QLabel("Vertical: Channel:", self)
+        self.y_channel_input = QComboBox(self)
+        for i in range(self.nChannel):
+            self.y_channel_input.insertItem(i, "Ch{0}".format(i+1))
+        self.y_enabled = QCheckBox("Enabled", self)
+
+        layout = QHBoxLayout()
+        layout.addWidget(text)
+        layout.addWidget(self.y_channel_input)
+        layout.addWidget(self.y_enabled)
+        layout_final.addLayout(layout)
+
         #layout: ChartView
         chartView = QtCharts.QChartView()
         layout_final.addWidget(chartView)
@@ -118,6 +131,8 @@ class MyWidget(QWidget):
         self.x_scale_input_zoom_in.clicked.connect(self.x_scale_zoom_in)
         self.x_scale_input_zoom_out.clicked.connect(self.x_scale_zoom_out)
         self.x_scale_output.returnPressed.connect(self.set_x_scale)
+        self.y_channel_input.activated.connect(self.update_channel)
+        self.y_enabled.clicked.connect(self.channel_enabled)
 
         #Timer
         self.timer = QTimer(self)
@@ -180,6 +195,7 @@ class MyWidget(QWidget):
                 self.isShowChannel.append(bool(int(self.MDO.MySocket.send_receive_string("Select:Ch{0}?".format(i+1)))))
 
             self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
+            self.update_channel()
 
             self.MDO.MySocket.send_only("data:source CH1")
             self.MDO.MySocket.send_only("data:start 1")
@@ -210,12 +226,6 @@ class MyWidget(QWidget):
         dtime = datetime.datetime.now()
         self.time.setText(dtime.strftime('%c'))
 
-        #x-axis
-        self.XINCR = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XINCR?"))
-        self.XZERO = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XZERO?"))
-        self.axisX.setRange(self.XZERO, self.XZERO + self.XINCR * self.nPoint)
-
-        #y-axis
         data = []
         YMULT = []
         YOFF = []
@@ -230,7 +240,12 @@ class MyWidget(QWidget):
                 #print(self.MDO.MySocket.send_receive_string("WfmOutPre?"))
                 #self.MDO.MySocket.send_only("header 0")
 
-                #get waveform
+                #x-axis
+                self.XINCR = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XINCR?"))
+                self.XZERO = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XZERO?"))
+                self.axisX.setRange(self.XZERO, self.XZERO + self.XINCR * self.nPoint)
+
+                #y-axis
                 data.append(self.MDO.MySocket.send_receive_string("curve?"))
                 YMULT.append(float(self.MDO.MySocket.send_receive_string("WfmOutPre:YMULT?")))
                 YOFF.append(int(float(self.MDO.MySocket.send_receive_string("WfmOutPre:YOFF?"))))
@@ -275,6 +290,30 @@ class MyWidget(QWidget):
         if self.connect_input.isChecked():
             self.MDO.MySocket.send_only("horizontal:scale " + self.x_scale_output.text())
             self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
+
+    @Slot()
+    def update_channel(self):
+        if self.connect_input.isChecked():
+            channel = self.y_channel_input.currentText()
+            isEnabled = self.MDO.MySocket.send_receive_string("Select:" + channel + "?")
+            if isEnabled == "0":
+                self.y_enabled.setCheckState(Qt.Unchecked)
+            elif isEnabled == "1":
+                self.y_enabled.setCheckState(Qt.Checked)
+
+    @Slot()
+    def channel_enabled(self):
+        if self.connect_input.isChecked():
+            channel_string = self.y_channel_input.currentText()
+            channel_index = int(channel_string[-1:]) -1
+            if self.y_enabled.isChecked():
+                self.MDO.MySocket.send_only("Select:" + channel_string + " on")
+                self.isShowChannel[channel_index] = True
+            else:
+                self.isShowChannel[channel_index] = False
+                self.MDO.MySocket.send_only("Select:" + channel_string + " off")
+                for i in range(self.nPoint):
+                    self.series[channel_index].replace(i,0,0)
 
 class MainWindow(QMainWindow):
     def __init__(self, widget):
