@@ -65,12 +65,12 @@ class MyWidget(QWidget):
         text = QLabel("IPv4 Address:", self)
         text.setAlignment(Qt.AlignCenter)
         self.ip_input = QLineEdit(self.ip, self)
-        self.checkbox = QCheckBox("connect", self)
+        self.connect_input = QCheckBox("connect", self)
 
         layout = QHBoxLayout()
         layout.addWidget(text)
         layout.addWidget(self.ip_input)
-        layout.addWidget(self.checkbox)
+        layout.addWidget(self.connect_input)
         layout_final.addLayout(layout)
 
         #layout: Name
@@ -94,7 +94,7 @@ class MyWidget(QWidget):
         layout_final.addLayout(layout)
 
         #layout: Horizontal
-        text = QLabel("Horizontal scale (second per division):", self)
+        text = QLabel("Horizontal: Scale (second per division):", self)
         self.x_scale_output = QLineEdit("", self)
         self.x_scale_input_zoom_in = QPushButton("+",self)
         self.x_scale_input_zoom_out = QPushButton("-",self)
@@ -114,7 +114,7 @@ class MyWidget(QWidget):
 
         #signal and slot
         self.ip_input.returnPressed.connect(self.update_ip)
-        self.checkbox.stateChanged.connect(self.connect)
+        self.connect_input.stateChanged.connect(self.connect)
         self.x_scale_input_zoom_in.clicked.connect(self.x_scale_zoom_in)
         self.x_scale_input_zoom_out.clicked.connect(self.x_scale_zoom_out)
         self.x_scale_output.returnPressed.connect(self.set_x_scale)
@@ -166,7 +166,7 @@ class MyWidget(QWidget):
 
     @Slot()
     def connect(self):
-        if self.checkbox.isChecked():
+        if self.connect_input.isChecked():
             print("connecting " + self.ip)
             self.timer.start(sample_interval_secs *1000)
             self.MDO = MDO3000(self.ip)
@@ -260,18 +260,21 @@ class MyWidget(QWidget):
 
     @Slot()
     def x_scale_zoom_in(self):
-        self.MDO.MySocket.send_only("FPanel:turn HorzScale, 1")
-        self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
+        if self.connect_input.isChecked():
+            self.MDO.MySocket.send_only("FPanel:turn HorzScale, 1")
+            self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
 
     @Slot()
     def x_scale_zoom_out(self):
-        self.MDO.MySocket.send_only("FPanel:turn HorzScale, -1")
-        self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
+        if self.connect_input.isChecked():
+            self.MDO.MySocket.send_only("FPanel:turn HorzScale, -1")
+            self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
 
     @Slot()
     def set_x_scale(self):
-        self.MDO.MySocket.send_only("horizontal:scale " + self.x_scale_output.text())
-        self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
+        if self.connect_input.isChecked():
+            self.MDO.MySocket.send_only("horizontal:scale " + self.x_scale_output.text())
+            self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
 
 class MainWindow(QMainWindow):
     def __init__(self, widget):
