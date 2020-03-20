@@ -123,10 +123,10 @@ class MyWidget(QWidget):
             markers[i].setLabel("Ch{0}".format(i+1))
 
         self.axisX = QtCharts.QValueAxis()
-        self.axisX.setTickCount(9)
+        self.axisX.setTickCount(11)
         self.axisX.setLabelFormat("%.1e")
         self.axisX.setTitleText("Time (s)")
-        self.axisX.setRange(-1e-7,3e-7)
+        self.axisX.setRange(-2e-3,2e-3)
         chart.addAxis(self.axisX, Qt.AlignBottom)
         for i in range(self.nChannel):
             self.series[i].attachAxis(self.axisX)
@@ -173,23 +173,10 @@ class MyWidget(QWidget):
             self.MDO.MySocket.send_only("ACQuire:STOPAfter RunStop")
             #self.MDO.MySocket.send_only("ACQuire:STOPAfter sequence")
 
-            #self.MDO.MySocket.send_only(":header 1")
-            #self.MDO.MySocket.send_only("verbose on")
-            #print(self.MDO.MySocket.send_receive_string("WfmOutPre?"))
-            #self.MDO.MySocket.send_only("header 0")
-
             wfid = self.MDO.MySocket.send_receive_string("WfmOutPre:wfid?")
-
             #remove quotation mark
             wfid = wfid[1:-1].split(", ")
             print(wfid)
-
-            #x-axis
-            self.XINCR = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XINCR?"))
-            print("XINCR:", self.XINCR)
-            self.XZERO = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XZERO?"))
-            print("XZERO:", self.XZERO)
-            self.axisX.setRange(self.XZERO, self.XZERO + self.XINCR * self.nPoint)
 
         else:
             print("disconnecting...")
@@ -204,6 +191,12 @@ class MyWidget(QWidget):
         dtime = datetime.datetime.now()
         self.time.setText(dtime.strftime('%c'))
 
+        #x-axis
+        self.XINCR = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XINCR?"))
+        self.XZERO = float(self.MDO.MySocket.send_receive_string("WfmOutPre:XZERO?"))
+        self.axisX.setRange(self.XZERO, self.XZERO + self.XINCR * self.nPoint)
+
+        #y-axis
         data = []
         YMULT = []
         YOFF = []
