@@ -29,7 +29,7 @@ class MDO3000(object):
         print("protocol Terminal has already been set")
 
         print("sending !d")
-        print(self.MySocket.send_receive_string('!d', "> ", True))
+        print(self.MySocket.send_receive_string('!d', "Sending device clear\r\n> ", True))
         print("!d has already been sent")
 
         print("setting protocol None")
@@ -93,6 +93,19 @@ class MyWidget(QWidget):
         layout.addWidget(self.time)
         layout_final.addLayout(layout)
 
+        #layout: Horizontal
+        text = QLabel("Horizontal scale (second per division):", self)
+        self.x_scale_output = QLineEdit("", self)
+        self.x_scale_input_zoom_in = QPushButton("+",self)
+        self.x_scale_input_zoom_out = QPushButton("-",self)
+
+        layout = QHBoxLayout()
+        layout.addWidget(text)
+        layout.addWidget(self.x_scale_output)
+        layout.addWidget(self.x_scale_input_zoom_in)
+        layout.addWidget(self.x_scale_input_zoom_out)
+        layout_final.addLayout(layout)
+
         #layout: ChartView
         chartView = QtCharts.QChartView()
         layout_final.addWidget(chartView)
@@ -102,6 +115,9 @@ class MyWidget(QWidget):
         #signal and slot
         self.ip_input.returnPressed.connect(self.update_ip)
         self.checkbox.stateChanged.connect(self.connect)
+        self.x_scale_input_zoom_in.clicked.connect(self.x_scale_zoom_in)
+        self.x_scale_input_zoom_out.clicked.connect(self.x_scale_zoom_out)
+        self.x_scale_output.returnPressed.connect(self.set_x_scale)
 
         #Timer
         self.timer = QTimer(self)
@@ -163,6 +179,8 @@ class MyWidget(QWidget):
             for i in range(self.nChannel):
                 self.isShowChannel.append(bool(int(self.MDO.MySocket.send_receive_string("Select:Ch{0}?".format(i+1)))))
 
+            self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
+
             self.MDO.MySocket.send_only("data:source CH1")
             self.MDO.MySocket.send_only("data:start 1")
             self.MDO.MySocket.send_only("data:stop {0}".format(self.nPoint))
@@ -184,6 +202,7 @@ class MyWidget(QWidget):
             del self.MDO
 
             self.name.setText("")
+            self.x_scale_output.setText("")
             print("disconnect successfully.")
 
     @Slot()
@@ -238,6 +257,21 @@ class MyWidget(QWidget):
           
                     index += 1
                     x += self.XINCR
+
+    @Slot()
+    def x_scale_zoom_in(self):
+        self.MDO.MySocket.send_only("FPanel:turn HorzScale, 1")
+        self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
+
+    @Slot()
+    def x_scale_zoom_out(self):
+        self.MDO.MySocket.send_only("FPanel:turn HorzScale, -1")
+        self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
+
+    @Slot()
+    def set_x_scale(self):
+        self.MDO.MySocket.send_only("horizontal:scale " + self.x_scale_output.text())
+        self.x_scale_output.setText(self.MDO.MySocket.send_receive_string("horizontal:scale?"))
 
 class MainWindow(QMainWindow):
     def __init__(self, widget):
