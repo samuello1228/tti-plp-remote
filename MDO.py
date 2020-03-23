@@ -205,6 +205,9 @@ class MyWidget(QWidget):
         self.y_scale_output.returnPressed.connect(self.set_y_scale)
 
         self.measurement_row_input.activated.connect(self.update_measurement_config)
+        self.measurement_enabled.clicked.connect(self.enable_measurement)
+        self.measurement_channel_input.activated.connect(self.update_measurement_channel)
+        self.measurement_type_input.activated.connect(self.update_measurement_type)
 
         #Timer
         self.timer = QTimer(self)
@@ -357,12 +360,14 @@ class MyWidget(QWidget):
             self.measurement_table.setItem(i, 0, QTableWidgetItem(self.measurement_channel_list[i]))
             self.measurement_table.setItem(i, 1, QTableWidgetItem(self.measurement_type_list[i]))
 
-            unit = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:units?".format(i+1))
-            unit = unit[1:]
-            unit = unit[:-1]
-            for j in range(len(self.measurement_statistics_list)):
-                value = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:".format(i+1) + self.measurement_statistics_list[j] + "?")
-                self.measurement_table.setItem(i, 2+j, QTableWidgetItem(value + " " + unit))
+            state = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:state?".format(i+1))
+            if state == "1":
+                unit = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:units?".format(i+1))
+                unit = unit[1:]
+                unit = unit[:-1]
+                for j in range(len(self.measurement_statistics_list)):
+                    value = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:".format(i+1) + self.measurement_statistics_list[j] + "?")
+                    self.measurement_table.setItem(i, 2+j, QTableWidgetItem(value + " " + unit))
 
     @Slot()
     def x_scale_zoom_in(self):
@@ -462,6 +467,34 @@ class MyWidget(QWidget):
             self.measurement_channel_input.setCurrentText(channel)
             Type = self.MDO.MySocket.send_receive_string("Measurement:Meas" + self.measurement_row_input.currentText() + ":type?")
             self.measurement_type_input.setCurrentText(Type)
+
+    @Slot()
+    def enable_measurement(self):
+        if self.connect_input.isChecked():
+            row_string = self.measurement_row_input.currentText()
+            index = int(row_string) -1
+            if self.measurement_enabled.isChecked():
+                self.MDO.MySocket.send_only("Measurement:Meas" + row_string + ":state on")
+            else:
+                self.MDO.MySocket.send_only("Measurement:Meas" + row_string + ":state off")
+                for j in range(len(self.measurement_statistics_list)):
+                    self.measurement_table.setItem(index, 2+j, QTableWidgetItem(""))
+
+    @Slot()
+    def update_measurement_channel(self):
+        if self.connect_input.isChecked():
+            row_string = self.measurement_row_input.currentText()
+            index = int(row_string) -1
+            self.MDO.MySocket.send_only("Measurement:Meas" + row_string + ":source " + self.measurement_channel_input.currentText())
+            self.measurement_channel_list[index] = self.measurement_channel_input.currentText()
+
+    @Slot()
+    def update_measurement_type(self):
+        if self.connect_input.isChecked():
+            row_string = self.measurement_row_input.currentText()
+            index = int(row_string) -1
+            self.MDO.MySocket.send_only("Measurement:Meas" + row_string + ":type " + self.measurement_type_input.currentText())
+            self.measurement_type_list[index] = self.measurement_type_input.currentText()
 
 class MainWindow(QMainWindow):
     def __init__(self, widget):

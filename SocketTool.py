@@ -12,6 +12,7 @@ class SocketTool(object):
 
     def send_only(self, cmd):
         self.s.sendall(bytes(cmd+"\r\n",'ascii'))
+        #print('Cmd', repr(cmd))
 
     def recv_end(self, end_string, isPrint):
         end_byte = bytes(end_string ,'ascii')
@@ -35,8 +36,8 @@ class SocketTool(object):
 
     def send_receive_string(self, cmd, end_string = None, isPrint = False):
         self.s.sendall(bytes(cmd+"\r\n",'ascii'))
-
         #print('Cmd', repr(cmd))
+
         if end_string == None:
             data = self.recv_end(self.packet_end_string, isPrint)
         else:
