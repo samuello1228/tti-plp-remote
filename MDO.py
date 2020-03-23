@@ -107,16 +107,25 @@ class MyWidget(QWidget):
         layout_final.addLayout(layout)
 
         #layout: Vertical
-        text = QLabel("Vertical: Channel:", self)
+        text1 = QLabel("Vertical: Channel:", self)
         self.y_channel_input = QComboBox(self)
         for i in range(self.nChannel):
             self.y_channel_input.insertItem(i, "Ch{0}".format(i+1))
         self.y_enabled = QCheckBox("Enabled", self)
 
+        text2 = QLabel("Scale (V per division):", self)
+        self.y_scale_output = QLineEdit("", self)
+        self.y_scale_input_zoom_in = QPushButton("+",self)
+        self.y_scale_input_zoom_out = QPushButton("-",self)
+
         layout = QHBoxLayout()
-        layout.addWidget(text)
+        layout.addWidget(text1)
         layout.addWidget(self.y_channel_input)
         layout.addWidget(self.y_enabled)
+        layout.addWidget(text2)
+        layout.addWidget(self.y_scale_output)
+        layout.addWidget(self.y_scale_input_zoom_in)
+        layout.addWidget(self.y_scale_input_zoom_out)
         layout_final.addLayout(layout)
 
         #layout: ChartView
@@ -128,11 +137,16 @@ class MyWidget(QWidget):
         #signal and slot
         self.ip_input.returnPressed.connect(self.update_ip)
         self.connect_input.stateChanged.connect(self.connect)
+
         self.x_scale_input_zoom_in.clicked.connect(self.x_scale_zoom_in)
         self.x_scale_input_zoom_out.clicked.connect(self.x_scale_zoom_out)
         self.x_scale_output.returnPressed.connect(self.set_x_scale)
+
         self.y_channel_input.activated.connect(self.update_channel)
         self.y_enabled.clicked.connect(self.channel_enabled)
+        self.y_scale_input_zoom_in.clicked.connect(self.y_scale_zoom_in)
+        self.y_scale_input_zoom_out.clicked.connect(self.y_scale_zoom_out)
+        self.y_scale_output.returnPressed.connect(self.set_y_scale)
 
         #Timer
         self.timer = QTimer(self)
@@ -294,12 +308,17 @@ class MyWidget(QWidget):
     @Slot()
     def update_channel(self):
         if self.connect_input.isChecked():
-            channel = self.y_channel_input.currentText()
-            isEnabled = self.MDO.MySocket.send_receive_string("Select:" + channel + "?")
+            channel_string = self.y_channel_input.currentText()
+            isEnabled = self.MDO.MySocket.send_receive_string("Select:" + channel_string + "?")
+
+            #enabled
             if isEnabled == "0":
                 self.y_enabled.setCheckState(Qt.Unchecked)
             elif isEnabled == "1":
                 self.y_enabled.setCheckState(Qt.Checked)
+
+            #vertical scale
+            self.y_scale_output.setText(self.MDO.MySocket.send_receive_string(channel_string + ":scale?"))
 
     @Slot()
     def channel_enabled(self):
@@ -314,6 +333,33 @@ class MyWidget(QWidget):
                 self.MDO.MySocket.send_only("Select:" + channel_string + " off")
                 for i in range(self.nPoint):
                     self.series[channel_index].replace(i,0,0)
+
+    @Slot()
+    def y_scale_zoom_in(self):
+        if self.connect_input.isChecked():
+            channel_string = self.y_channel_input.currentText()
+            channel_index = int(channel_string[-1:]) -1
+            if self.isShowChannel[channel_index]:
+                self.MDO.MySocket.send_only("FPanel:turn VertScale" + channel_string[-1:] + ", 1")
+                self.y_scale_output.setText(self.MDO.MySocket.send_receive_string(channel_string + ":scale?"))
+
+    @Slot()
+    def y_scale_zoom_out(self):
+        if self.connect_input.isChecked():
+            channel_string = self.y_channel_input.currentText()
+            channel_index = int(channel_string[-1:]) -1
+            if self.isShowChannel[channel_index]:
+                self.MDO.MySocket.send_only("FPanel:turn VertScale" + channel_string[-1:] + ", -1")
+                self.y_scale_output.setText(self.MDO.MySocket.send_receive_string(channel_string + ":scale?"))
+
+    @Slot()
+    def set_y_scale(self):
+        if self.connect_input.isChecked():
+            channel_string = self.y_channel_input.currentText()
+            channel_index = int(channel_string[-1:]) -1
+            if self.isShowChannel[channel_index]:
+                self.MDO.MySocket.send_only(channel_string + ":scale " + self.y_scale_output.text())
+                self.y_scale_output.setText(self.MDO.MySocket.send_receive_string(channel_string + ":scale?"))
 
 class MainWindow(QMainWindow):
     def __init__(self, widget):
