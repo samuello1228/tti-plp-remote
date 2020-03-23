@@ -59,6 +59,7 @@ class MyWidget(QWidget):
         self.ip = default_ip
         self.nPoint = 1000
         self.nChannel = 4
+        self.nRow = 4
         layout_final = QVBoxLayout()
 
         #layout: ip and connect checkbox
@@ -140,7 +141,11 @@ class MyWidget(QWidget):
         text2 = QLabel("Row:", self)
         text2.setAlignment(Qt.AlignRight)
         self.measurement_row_input = QComboBox(self)
-        self.measurement_row_input.insertItem(0, "1")
+        for i in range(self.nRow):
+            self.measurement_row_input.insertItem(i, str(i+1))
+        self.measurement_row_input.setCurrentText("1")
+
+        self.measurement_enabled = QCheckBox("Enabled", self)
 
         text3 = QLabel("Channel:", self)
         text3.setAlignment(Qt.AlignRight)
@@ -154,19 +159,15 @@ class MyWidget(QWidget):
         self.measurement_type_input.insertItem(0, "MEAN")
         self.measurement_type_input.insertItem(1, "RMS")
 
-        self.measurement_add_input = QPushButton("Add",self)
-        self.measurement_remove_input = QPushButton("Remove",self)
-
         layout = QHBoxLayout()
         layout.addWidget(text1)
         layout.addWidget(text2)
         layout.addWidget(self.measurement_row_input)
+        layout.addWidget(self.measurement_enabled)
         layout.addWidget(text3)
         layout.addWidget(self.measurement_channel_input)
         layout.addWidget(text4)
         layout.addWidget(self.measurement_type_input)
-        layout.addWidget(self.measurement_add_input)
-        layout.addWidget(self.measurement_remove_input)
         layout_final.addLayout(layout)
 
         #layout: ChartView
@@ -175,7 +176,7 @@ class MyWidget(QWidget):
 
         #layout: Measurement table
         self.measurement_table = QTableWidget(self)
-        self.measurement_table.setRowCount(0)
+        self.measurement_table.setRowCount(self.nRow)
 
         self.measurement_statistics_list = ["Value", "Mean", "Minimum", "Maximum", "StdDev"]
         self.measurement_table.setColumnCount(2+len(self.measurement_statistics_list))
@@ -281,28 +282,14 @@ class MyWidget(QWidget):
             #measurement
             self.measurement_channel_list = []
             self.measurement_type_list = []
-            for i in range(4):
+            for i in range(self.nRow):
                 channel = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:source?".format(i+1))
                 self.measurement_channel_list.append(channel)
                 Type = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:type?".format(i+1))
                 self.measurement_type_list.append(Type)
 
-            self.measurement_size = len(self.measurement_channel_list)
-
             #measurement config
-            self.measurement_row_input.clear()
-            for i in range(self.measurement_size):
-                self.measurement_row_input.insertItem(i, str(i+1))
-            self.measurement_row_input.insertItem(self.measurement_size, str(self.measurement_size+1))
-
-            self.measurement_row_input.setCurrentText("1")
             self.update_measurement_config()
-
-            #measurement table
-            self.measurement_table.setRowCount(self.measurement_size)
-            for i in range(self.measurement_size):
-                self.measurement_table.setItem(i, 0, QTableWidgetItem(self.measurement_channel_list[i]))
-                self.measurement_table.setItem(i, 1, QTableWidgetItem(self.measurement_type_list[i]))
 
         else:
             print("disconnecting...")
@@ -310,7 +297,6 @@ class MyWidget(QWidget):
             del self.MDO
 
             self.name.setText("")
-            self.x_scale_output.setText("")
             print("disconnect successfully.")
 
     @Slot()
@@ -367,7 +353,10 @@ class MyWidget(QWidget):
                     x += self.XINCR
 
         #layout: Measurement table
-        for i in range(self.measurement_size):
+        for i in range(self.nRow):
+            self.measurement_table.setItem(i, 0, QTableWidgetItem(self.measurement_channel_list[i]))
+            self.measurement_table.setItem(i, 1, QTableWidgetItem(self.measurement_type_list[i]))
+
             unit = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:units?".format(i+1))
             unit = unit[1:]
             unit = unit[:-1]
@@ -462,7 +451,13 @@ class MyWidget(QWidget):
 
     @Slot()
     def update_measurement_config(self):
-        if self.connect_input.isChecked() and int(self.measurement_row_input.currentText()) <= self.measurement_size :
+        if self.connect_input.isChecked():
+            state = self.MDO.MySocket.send_receive_string("Measurement:Meas" + self.measurement_row_input.currentText() + ":state?")
+            if state == "0":
+                self.measurement_enabled.setCheckState(Qt.Unchecked)
+            elif state == "1":
+                self.measurement_enabled.setCheckState(Qt.Checked)
+
             channel = self.MDO.MySocket.send_receive_string("Measurement:Meas" + self.measurement_row_input.currentText() + ":source?")
             self.measurement_channel_input.setCurrentText(channel)
             Type = self.MDO.MySocket.send_receive_string("Measurement:Meas" + self.measurement_row_input.currentText() + ":type?")
