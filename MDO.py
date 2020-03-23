@@ -113,7 +113,12 @@ class MyWidget(QWidget):
             self.y_channel_input.insertItem(i, "Ch{0}".format(i+1))
         self.y_enabled = QCheckBox("Enabled", self)
 
-        text2 = QLabel("Scale (V per division):", self)
+        text2 = QLabel("Coupling:", self)
+        self.y_coupling = QComboBox(self)
+        self.y_coupling.insertItem(0, "DC")
+        self.y_coupling.insertItem(1, "AC")
+
+        text3 = QLabel("Scale (V per division):", self)
         self.y_scale_output = QLineEdit("", self)
         self.y_scale_input_zoom_in = QPushButton("+",self)
         self.y_scale_input_zoom_out = QPushButton("-",self)
@@ -123,6 +128,8 @@ class MyWidget(QWidget):
         layout.addWidget(self.y_channel_input)
         layout.addWidget(self.y_enabled)
         layout.addWidget(text2)
+        layout.addWidget(self.y_coupling)
+        layout.addWidget(text3)
         layout.addWidget(self.y_scale_output)
         layout.addWidget(self.y_scale_input_zoom_in)
         layout.addWidget(self.y_scale_input_zoom_out)
@@ -144,6 +151,7 @@ class MyWidget(QWidget):
 
         self.y_channel_input.activated.connect(self.update_channel)
         self.y_enabled.clicked.connect(self.channel_enabled)
+        self.y_coupling.activated.connect(self.set_coupling)
         self.y_scale_input_zoom_in.clicked.connect(self.y_scale_zoom_in)
         self.y_scale_input_zoom_out.clicked.connect(self.y_scale_zoom_out)
         self.y_scale_output.returnPressed.connect(self.set_y_scale)
@@ -317,6 +325,9 @@ class MyWidget(QWidget):
             elif isEnabled == "1":
                 self.y_enabled.setCheckState(Qt.Checked)
 
+            #coupling
+            self.y_coupling.setCurrentText(self.MDO.MySocket.send_receive_string(channel_string + ":coupling?"))
+
             #vertical scale
             self.y_scale_output.setText(self.MDO.MySocket.send_receive_string(channel_string + ":scale?"))
 
@@ -333,6 +344,14 @@ class MyWidget(QWidget):
                 self.MDO.MySocket.send_only("Select:" + channel_string + " off")
                 for i in range(self.nPoint):
                     self.series[channel_index].replace(i,0,0)
+
+    @Slot()
+    def set_coupling(self):
+        if self.connect_input.isChecked():
+            channel_string = self.y_channel_input.currentText()
+            channel_index = int(channel_string[-1:]) -1
+            if self.isShowChannel[channel_index]:
+                self.MDO.MySocket.send_only(channel_string + ":coupling " + self.y_coupling.currentText())
 
     @Slot()
     def y_scale_zoom_in(self):
