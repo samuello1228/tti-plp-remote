@@ -6,7 +6,7 @@ from SocketTool import SocketTool
 from PySide2.QtCore import Qt, Slot, QTimer, QDateTime 
 from PySide2.QtWidgets import QApplication, QMainWindow, QWidget
 from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout
-from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton, QComboBox
+from PySide2.QtWidgets import QLabel, QLineEdit, QCheckBox, QPushButton, QComboBox, QTableWidget, QTableWidgetItem
 from PySide2.QtCharts import QtCharts
 from PySide2.QtGui import QPainter
 
@@ -135,9 +135,56 @@ class MyWidget(QWidget):
         layout.addWidget(self.y_scale_input_zoom_out)
         layout_final.addLayout(layout)
 
+        #layout: Measurement config
+        text1 = QLabel("Measurement:", self)
+        text2 = QLabel("Row:", self)
+        text2.setAlignment(Qt.AlignRight)
+        self.measurement_row_input = QComboBox(self)
+        self.measurement_row_input.insertItem(0, "1")
+
+        text3 = QLabel("Channel:", self)
+        text3.setAlignment(Qt.AlignRight)
+        self.measurement_channel_input = QComboBox(self)
+        for i in range(self.nChannel):
+            self.measurement_channel_input.insertItem(i, "CH{0}".format(i+1))
+
+        text4 = QLabel("Type:", self)
+        text4.setAlignment(Qt.AlignRight)
+        self.measurement_type_input = QComboBox(self)
+        self.measurement_type_input.insertItem(0, "MEAN")
+        self.measurement_type_input.insertItem(1, "RMS")
+
+        self.measurement_add_input = QPushButton("Add",self)
+        self.measurement_remove_input = QPushButton("Remove",self)
+
+        layout = QHBoxLayout()
+        layout.addWidget(text1)
+        layout.addWidget(text2)
+        layout.addWidget(self.measurement_row_input)
+        layout.addWidget(text3)
+        layout.addWidget(self.measurement_channel_input)
+        layout.addWidget(text4)
+        layout.addWidget(self.measurement_type_input)
+        layout.addWidget(self.measurement_add_input)
+        layout.addWidget(self.measurement_remove_input)
+        layout_final.addLayout(layout)
+
         #layout: ChartView
         chartView = QtCharts.QChartView()
         layout_final.addWidget(chartView)
+
+        #layout: Measurement table
+        self.measurement_table = QTableWidget(self)
+        self.measurement_table.setRowCount(0)
+
+        self.measurement_statistics_list = ["Value", "Mean", "Minimum", "Maximum", "StdDev"]
+        self.measurement_table.setColumnCount(2+len(self.measurement_statistics_list))
+        self.measurement_table.setHorizontalHeaderItem(0, QTableWidgetItem("Channel"))
+        self.measurement_table.setHorizontalHeaderItem(1, QTableWidgetItem("Type"))
+
+        for i in range(len(self.measurement_statistics_list)):
+            self.measurement_table.setHorizontalHeaderItem(2+i, QTableWidgetItem(self.measurement_statistics_list[i]))
+        layout_final.addWidget(self.measurement_table)
 
         self.setLayout(layout_final)
 
@@ -155,6 +202,8 @@ class MyWidget(QWidget):
         self.y_scale_input_zoom_in.clicked.connect(self.y_scale_zoom_in)
         self.y_scale_input_zoom_out.clicked.connect(self.y_scale_zoom_out)
         self.y_scale_output.returnPressed.connect(self.set_y_scale)
+
+        self.measurement_row_input.activated.connect(self.update_measurement_config)
 
         #Timer
         self.timer = QTimer(self)
@@ -229,10 +278,31 @@ class MyWidget(QWidget):
             self.MDO.MySocket.send_only("ACQuire:STOPAfter RunStop")
             #self.MDO.MySocket.send_only("ACQuire:STOPAfter sequence")
 
-            wfid = self.MDO.MySocket.send_receive_string("WfmOutPre:wfid?")
-            #remove quotation mark
-            wfid = wfid[1:-1].split(", ")
-            print(wfid)
+            #measurement
+            self.measurement_channel_list = []
+            self.measurement_type_list = []
+            for i in range(4):
+                channel = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:source?".format(i+1))
+                self.measurement_channel_list.append(channel)
+                Type = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:type?".format(i+1))
+                self.measurement_type_list.append(Type)
+
+            self.measurement_size = len(self.measurement_channel_list)
+
+            #measurement config
+            self.measurement_row_input.clear()
+            for i in range(self.measurement_size):
+                self.measurement_row_input.insertItem(i, str(i+1))
+            self.measurement_row_input.insertItem(self.measurement_size, str(self.measurement_size+1))
+
+            self.measurement_row_input.setCurrentText("1")
+            self.update_measurement_config()
+
+            #measurement table
+            self.measurement_table.setRowCount(self.measurement_size)
+            for i in range(self.measurement_size):
+                self.measurement_table.setItem(i, 0, QTableWidgetItem(self.measurement_channel_list[i]))
+                self.measurement_table.setItem(i, 1, QTableWidgetItem(self.measurement_type_list[i]))
 
         else:
             print("disconnecting...")
@@ -248,6 +318,7 @@ class MyWidget(QWidget):
         dtime = datetime.datetime.now()
         self.time.setText(dtime.strftime('%c'))
 
+        #waveform chart
         data = []
         YMULT = []
         YOFF = []
@@ -294,6 +365,15 @@ class MyWidget(QWidget):
           
                     index += 1
                     x += self.XINCR
+
+        #layout: Measurement table
+        for i in range(self.measurement_size):
+            unit = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:units?".format(i+1))
+            unit = unit[1:]
+            unit = unit[:-1]
+            for j in range(len(self.measurement_statistics_list)):
+                value = self.MDO.MySocket.send_receive_string("Measurement:Meas{0}:".format(i+1) + self.measurement_statistics_list[j] + "?")
+                self.measurement_table.setItem(i, 2+j, QTableWidgetItem(value + " " + unit))
 
     @Slot()
     def x_scale_zoom_in(self):
@@ -379,6 +459,14 @@ class MyWidget(QWidget):
             if self.isShowChannel[channel_index]:
                 self.MDO.MySocket.send_only(channel_string + ":scale " + self.y_scale_output.text())
                 self.y_scale_output.setText(self.MDO.MySocket.send_receive_string(channel_string + ":scale?"))
+
+    @Slot()
+    def update_measurement_config(self):
+        if self.connect_input.isChecked() and int(self.measurement_row_input.currentText()) <= self.measurement_size :
+            channel = self.MDO.MySocket.send_receive_string("Measurement:Meas" + self.measurement_row_input.currentText() + ":source?")
+            self.measurement_channel_input.setCurrentText(channel)
+            Type = self.MDO.MySocket.send_receive_string("Measurement:Meas" + self.measurement_row_input.currentText() + ":type?")
+            self.measurement_type_input.setCurrentText(Type)
 
 class MainWindow(QMainWindow):
     def __init__(self, widget):
